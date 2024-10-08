@@ -1,9 +1,9 @@
 import pygame
 import sys
 
-from entities import PhysicsEntity, Player
-from utils import load_image, load_images, Animation
-from tilemap import Tilemap
+from scripts.entities import PhysicsEntity, Player
+from scripts.utils import load_image, load_images, Animation
+from scripts.tilemap import Tilemap
 
 # Constants
 SCREEN_SIZE = (1280, 960)
@@ -56,9 +56,10 @@ class Game:
     # Runs 60 times per second
     def run(self):
         """
-        Primary game loop, controls rendering and game initialization
+        Primary game loop; controls rendering, game initialization, and player input
         """
         while True:
+
             # Event loop
             for event in pygame.event.get():
 
@@ -66,6 +67,7 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+
                 # Keystroke down
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_a:         # A is left
@@ -76,6 +78,7 @@ class Game:
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT:     # SHIFT is dash
                         self.player.dash()
+                        
                 # Keystroke up
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_a:
@@ -96,15 +99,18 @@ class Game:
             # Draw tiles
             self.tilemap.render(self.display, offset=render_scroll)
 
-            # Update player X
+            # Update player X movement
             self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
+
+            # Render player
             self.player.render(self.display, offset=render_scroll)
 
-            # Render display onto screen
+            # Render display onto screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
 
             # End frame
             pygame.display.update()
             self.clock.tick(TICK_RATE)
+
 
 Game().run()

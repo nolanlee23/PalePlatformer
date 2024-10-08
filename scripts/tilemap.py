@@ -18,9 +18,10 @@ class Tilemap:
         self.tilemap = {}
         self.offgrid_tiles = []
 
-        for i in range(20):
-            self.tilemap[str(3 + i) + ';10'] = {'type': 'grass', 'variant': 1, 'pos': (3 + i, 10)}
-            self.tilemap['10;' + str(5 + i)] = {'type': 'stone', 'variant': 1, 'pos': (10, 5 + i)}
+        for i in range(40):
+            self.tilemap[str(3 + i) + ';14'] = {'type': 'grass', 'variant': 1, 'pos': (3 + i, 14)}
+            self.tilemap[str(3 + i) + ';15'] = {'type': 'grass', 'variant': 5, 'pos': (3 + i, 15)}
+            self.tilemap['10;' + str(10 - i)] = {'type': 'stone', 'variant': 7, 'pos': (10, 10 - i)}
 
     def tiles_nearby(self, pos):
         """
@@ -28,9 +29,6 @@ class Tilemap:
         Returns a list of nearby tiles to pos in a 5x5 area
         """
         output_tiles = []
-
-        # Adjust position to center of entity
-        #entity_pos = self.game.player.entity_rect().center
 
         # Convert pixel position to grid position with integer division
         tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))

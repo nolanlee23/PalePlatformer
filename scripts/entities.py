@@ -26,7 +26,7 @@ WALL_JUMP_TICK_CUTOFF = 9
 WALL_JUMP_TICK_STALL = 2
 DASH_X_SCALE = 4.0
 DASH_TICK = 14
-DASH_COOLDOWN_TICK = 4
+DASH_COOLDOWN_TICK = 8
 
 class PhysicsEntity:
 
@@ -126,6 +126,8 @@ class PhysicsEntity:
         """
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + PLAYER_X_OFFSET + self.anim_offset[0], self.pos[1] - offset[1] + PLAYER_Y_OFFSET + self.anim_offset[1]))
 
+
+
 class Player(PhysicsEntity):
     """
     PhysicsEntity subclass to handle player-specific animation and input parameters
@@ -140,6 +142,7 @@ class Player(PhysicsEntity):
         self.dashes = NUM_DASHES
         self.dash_timer = 0
         self.dash_cooldown_timer = 0
+        
 
     def update(self, tilemap, movement=(0, 0)):
         """
@@ -172,6 +175,7 @@ class Player(PhysicsEntity):
         self.wall_jump_timer += 1
         self.dash_cooldown_timer += 1
         self.wall_slide = False
+        self.anim_offset = ANIM_OFFSET
 
         # Reset upon touching ground
         if self.collisions['down']:
@@ -204,13 +208,10 @@ class Player(PhysicsEntity):
 
         # ANIMATION
 
-        # Dash animation can overrule
-        if abs(self.dash_timer) > 0:
-            self.set_action('dash')
         # Check for wall slide, reduce Y speed if touching wall
-    
-        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > -0.5 and not self.dash_timer:
+        if (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > -0.5:
             self.wall_slide = True
+            self.dash_timer /= 2
             self.velocity[1] = min(self.velocity[1], WALL_SLIDE_VEL)
             self.set_action('wall_slide')
         # Wall slide animation facing right, opposite of wall
@@ -219,6 +220,11 @@ class Player(PhysicsEntity):
             else:
                 self.flip = True
 
+        # Dash animation 
+        elif abs(self.dash_timer) > 0:
+            self.set_action('dash')
+            self.anim_offset = (-3, 3)
+
         # Buffer for small amounts of airtime flashing animation
         elif self.air_time > AIRTIME_BUFFER:
             if self.velocity[1] < 0:
@@ -226,7 +232,7 @@ class Player(PhysicsEntity):
             else:
                 self.set_action('fall')     # Falling
         elif movement[0] != 0 and not self.collisions['left'] and not self.collisions['right']:
-            self.set_action('run')          # Running (4 frames)
+            self.set_action('run')          # Running (not into a wall)
         else:
             self.set_action('idle')         # Idle
         
@@ -251,12 +257,14 @@ class Player(PhysicsEntity):
                 self.air_time = AIRTIME_BUFFER + 1
                 return True
         # Normal and double jump
-        elif self.jumps:
+        elif self.jumps and not self.dash_timer:
             if self.air_time > AIRTIME_BUFFER:
                 self.jumps = max(0, self.jumps - 1)
             self.velocity[1] = JUMP_Y_VELOCITY
             self.air_time = AIRTIME_BUFFER + 1
             return True
+        
+        return False
 
     def jump_release(self):
         """
