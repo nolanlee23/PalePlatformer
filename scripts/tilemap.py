@@ -18,10 +18,14 @@ class Tilemap:
         self.tilemap = {}
         self.offgrid_tiles = []
 
-        for i in range(40):
+        for i in range(25):
             self.tilemap[str(3 + i) + ';14'] = {'type': 'grass', 'variant': 1, 'pos': (3 + i, 14)}
             self.tilemap[str(3 + i) + ';15'] = {'type': 'grass', 'variant': 5, 'pos': (3 + i, 15)}
+            self.tilemap[str(3 + i) + ';16'] = {'type': 'grass', 'variant': 5, 'pos': (3 + i, 16)}
+            self.tilemap[str(3 + i) + ';17'] = {'type': 'grass', 'variant': 5, 'pos': (3 + i, 17)}
+            self.tilemap[str(3 + i) + ';18'] = {'type': 'grass', 'variant': 5, 'pos': (3 + i, 18)}
             self.tilemap['10;' + str(10 - i)] = {'type': 'stone', 'variant': 7, 'pos': (10, 10 - i)}
+            self.tilemap['11;' + str(10 - i)] = {'type': 'stone', 'variant': 3, 'pos': (11, 10 - i)}
 
     def tiles_nearby(self, pos):
         """
@@ -62,11 +66,15 @@ class Tilemap:
             surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
 
         # Render tiles only if in range of camera (camera offset + screen dimension)
+        renderTileTally = 0
         for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
             for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
                 loc = str(x) + ';' + str(y)
-                for loc in self.tilemap:
+                if loc in self.tilemap:
+                    renderTileTally += 1
                     tile = self.tilemap[loc]
                     surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
+
+        print(str(renderTileTally))
         
             

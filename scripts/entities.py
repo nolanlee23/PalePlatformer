@@ -3,7 +3,7 @@ import math
 
 # Physics constants
 TERMINAL_VELOCITY = 6.0
-GRAVITY_CONST = 0.18
+GRAVITY_CONST = 0.2
 TICK_RATE = 60
 
 # Offset in image render position to match collision
@@ -13,10 +13,11 @@ ANIM_OFFSET = (3, 3)
 
 # Player constants
 MOVEMENT_X_SCALE = 1.8
-JUMP_Y_VELOCITY = -5.0
+JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
+AIR_JUMP_Y_VEL = -4
 NUM_DASHES = 1
-VARIABLE_JUMP_SHEAR = 10.0
+VARIABLE_JUMP_SHEAR = 8.0
 AIRTIME_BUFFER = 4
 LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
@@ -24,8 +25,8 @@ WALL_SLIDE_VEL = 1.5
 WALL_JUMP_Y = -4.8
 WALL_JUMP_TICK_CUTOFF = 9
 WALL_JUMP_TICK_STALL = 2
-DASH_X_SCALE = 4.0
-DASH_TICK = 14
+DASH_X_SCALE = 4.3
+DASH_TICK = 12
 DASH_COOLDOWN_TICK = 8
 
 class PhysicsEntity:
@@ -258,9 +259,11 @@ class Player(PhysicsEntity):
                 return True
         # Normal and double jump
         elif self.jumps and not self.dash_timer:
-            if self.air_time > AIRTIME_BUFFER:
+            if self.air_time > AIRTIME_BUFFER:                  # Mid Air Jump
                 self.jumps = max(0, self.jumps - 1)
-            self.velocity[1] = JUMP_Y_VELOCITY
+                self.velocity[1] = AIR_JUMP_Y_VEL
+            else:
+                self.velocity[1] = JUMP_Y_VEL
             self.air_time = AIRTIME_BUFFER + 1
             return True
         

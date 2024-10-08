@@ -11,7 +11,7 @@ DISPLAY_SIZE = (320, 240)
 TICK_RATE = 60
 PLAYER_START_POS = (100, 90)
 PLAYER_SIZE = (10, 15)
-CAMERA_SMOOTH = 4.5
+CAMERA_SMOOTH = 10
 
 class Game:
 
@@ -78,7 +78,7 @@ class Game:
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT:     # SHIFT is dash
                         self.player.dash()
-                        
+
                 # Keystroke up
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_a:
