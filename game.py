@@ -9,9 +9,9 @@ from scripts.tilemap import Tilemap
 SCREEN_SIZE = (1280, 960)
 DISPLAY_SIZE = (320, 240)
 TICK_RATE = 60
-PLAYER_START_POS = (100, 90)
+PLAYER_START_POS = (150, 50)
 PLAYER_SIZE = (10, 15)
-CAMERA_SMOOTH = 10
+CAMERA_SMOOTH = 11
 
 class Game:
 
@@ -27,6 +27,7 @@ class Game:
         # 1/2 scale display used for rendering, scale up to screen
         self.display = pygame.Surface(DISPLAY_SIZE)
 
+        # Load assets
         self.assets = {
             'background' : load_image('backgrounds/green_cave.png'),
             'grass' : load_images('tiles/grass'),
@@ -34,11 +35,11 @@ class Game:
             'decor' : load_images('tiles/decor'),
             'large_decor' : load_images('tiles/large_decor'),
             'player/idle' : Animation(load_images('player/idle')),
-            'player/run' : Animation(load_images('player/run'), img_dur=6),
+            'player/run' : Animation(load_images('player/run'), img_dur=5),
             'player/jump' : Animation(load_images('player/jump')),
             'player/fall' : Animation(load_images('player/fall')),
             'player/wall_slide' : Animation(load_images('player/wall_slide')),
-            'player/dash' : Animation(load_images('player/dash'), img_dur=4, loop=False)
+            'player/dash' : Animation(load_images('player/dash'), img_dur=3, loop=False)
         }
 
         # Player Init
@@ -47,6 +48,7 @@ class Game:
 
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
+        self.tilemap.load('maps/map.json')
 
         # Camera Init
         self.scroll = [0, 0]
@@ -93,7 +95,7 @@ class Game:
 
             # Control Camera
             self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SMOOTH
-            self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / CAMERA_SMOOTH
+            self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / CAMERA_SMOOTH * 3
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
             # Draw tiles
@@ -103,7 +105,7 @@ class Game:
             self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
 
             # Render player
-            self.player.render(self.display, offset=render_scroll)
+            self.player.render(self.display, offset=self.scroll)
 
             # Render display onto screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))

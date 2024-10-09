@@ -9,23 +9,23 @@ TICK_RATE = 60
 # Offset in image render position to match collision
 PLAYER_X_OFFSET = -5
 PLAYER_Y_OFFSET = -11
-ANIM_OFFSET = (3, 3)
+ANIM_OFFSET = (3, 4)
 
 # Player constants
 MOVEMENT_X_SCALE = 1.8
 JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
-AIR_JUMP_Y_VEL = -4
+AIR_JUMP_Y_VEL = -4.2
 NUM_DASHES = 1
 VARIABLE_JUMP_SHEAR = 8.0
 AIRTIME_BUFFER = 4
 LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
-WALL_SLIDE_VEL = 1.5
+WALL_SLIDE_VEL = 1.25
 WALL_JUMP_Y = -4.8
 WALL_JUMP_TICK_CUTOFF = 9
 WALL_JUMP_TICK_STALL = 2
-DASH_X_SCALE = 4.3
+DASH_X_SCALE = 5
 DASH_TICK = 12
 DASH_COOLDOWN_TICK = 8
 
@@ -224,7 +224,7 @@ class Player(PhysicsEntity):
         # Dash animation 
         elif abs(self.dash_timer) > 0:
             self.set_action('dash')
-            self.anim_offset = (-3, 3)
+            self.anim_offset = (-3, 4)
 
         # Buffer for small amounts of airtime flashing animation
         elif self.air_time > AIRTIME_BUFFER:
@@ -259,7 +259,7 @@ class Player(PhysicsEntity):
                 return True
         # Normal and double jump
         elif self.jumps and not self.dash_timer:
-            if self.air_time > AIRTIME_BUFFER:                  # Mid Air Jump
+            if self.air_time > AIRTIME_BUFFER * 2:                  # Mid Air Jump
                 self.jumps = max(0, self.jumps - 1)
                 self.velocity[1] = AIR_JUMP_Y_VEL
             else:
@@ -279,9 +279,10 @@ class Player(PhysicsEntity):
 
     def dash(self):
         """
-        Dash by applying burst of movement
+        Dash by starting timer and taking over player movement until timer reaches zero
+        Return TRUE if sucessful dash
         """
-        if not self.dash_timer and not self.wall_slide and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and not self.collisions['right'] and not self.collisions['left']:
+        if not self.dash_timer and not self.wall_slide and self.wall_jump_timer > DASH_TICK / 2 and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and not self.collisions['right'] and not self.collisions['left']:
         # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
         # Start dash and dash cooldown timers, sign of dash timer determines direction of dash
@@ -290,3 +291,4 @@ class Player(PhysicsEntity):
             else:
                 self.dash_timer = DASH_TICK
             self.dash_cooldown_timer = -DASH_TICK
+            return True
