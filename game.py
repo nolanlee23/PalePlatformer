@@ -4,13 +4,15 @@ import sys
 from scripts.entities import PhysicsEntity, Player
 from scripts.utils import load_image, load_images, Animation
 from scripts.tilemap import Tilemap
+from scripts.particle import Particle
 
 # Constants
 SCREEN_SIZE = (1280, 960)
 DISPLAY_SIZE = (320, 240)
+RENDER_SCALE = 4.0
 TICK_RATE = 60
-PLAYER_START_POS = (150, 50)
-PLAYER_SIZE = (10, 15)
+PLAYER_START_POS = (0, 90)
+PLAYER_SIZE = (10, 14)
 CAMERA_SMOOTH = 11
 
 class Game:
@@ -20,11 +22,11 @@ class Game:
         pygame.init()
         self.clock = pygame.time.Clock()
 
-        # full size screen used for window
+        # full size screen used for window (container)
         self.screen = pygame.display.set_mode(SCREEN_SIZE)
         pygame.display.set_caption("PixelKnight")
 
-        # 1/2 scale display used for rendering, scale up to screen
+        # 1/2 scale display used for rendering, scale up to screen (render canvas)
         self.display = pygame.Surface(DISPLAY_SIZE)
 
         # Load assets
@@ -39,7 +41,11 @@ class Game:
             'player/jump' : Animation(load_images('player/jump')),
             'player/fall' : Animation(load_images('player/fall')),
             'player/wall_slide' : Animation(load_images('player/wall_slide')),
-            'player/dash' : Animation(load_images('player/dash'), img_dur=3, loop=False)
+            'player/dash' : Animation(load_images('player/cloak'), img_dur=3, loop=False),
+            'particle/dash_particle' : Animation(load_images('particles/cloak_particle'), img_dur=3, loop=False),
+            'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
+            'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
+            'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
         }
 
         # Player Init
@@ -50,10 +56,12 @@ class Game:
         self.tilemap = Tilemap(self, tile_size=16)
         self.tilemap.load('maps/map.json')
 
+        # Particle Init
+        self.particles = []
+
         # Camera Init
         self.scroll = [0, 0]
         
-    
 
     # Runs 60 times per second
     def run(self):
@@ -103,10 +111,17 @@ class Game:
 
             # Update player X movement
             self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
-
+            
             # Render player
             self.player.render(self.display, offset=self.scroll)
 
+            # Update and render particles
+            for particle in self.particles.copy():
+                kill = particle.update()
+                particle.render(self.display, offset=(render_scroll))
+                if kill:
+                    self.particles.remove(particle)
+            
             # Render display onto screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
 

@@ -54,6 +54,31 @@ class Tilemap:
         self.tile_size = map_data['tile_size']
         self.offgrid_tiles = map_data['offgrid']
 
+    def extract(self, id_pairs, keep=True):
+        """
+        Returns a list of all tile and offgrid tiles with the given (type, variant) pair
+        Deletes all returned tiles if keep is False
+        """
+        matches = []
+
+        for tile in self.offgrid_tiles.copy():
+            if (tile['type'], tile['variant']) in id_pairs:
+                matches.append(tile.copy())
+                if not keep:
+                    self.offgrid_tiles.remove(tile)
+        
+        for loc in self.tilemap:
+            tile = self.tilemap[loc]
+            if (tile['type'], tile['variant']) in id_pairs:
+                matches.append(tile.copy())
+                matches[-1]['pos'] = matches[-1]['pos'].copy()
+                matches[-1]['pos'][0] *= self.tile_size
+                matches[-1]['pos'][1] *= self.tile_size
+                if not keep:
+                    del self.tilemap[loc]
+
+        return matches
+
     def tiles_nearby(self, pos):
         """
         Helper method for collision detections
