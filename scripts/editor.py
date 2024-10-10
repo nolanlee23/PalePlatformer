@@ -32,6 +32,7 @@ class Editor:
             'stone' : load_images('tiles/stone'),
             'decor' : load_images('tiles/decor'),
             'large_decor' : load_images('tiles/large_decor'),
+            'spawners' : load_images('tiles/spawners'),
         }
 
         # World Init

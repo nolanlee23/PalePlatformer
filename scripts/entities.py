@@ -9,10 +9,19 @@ TERMINAL_VELOCITY = 6.0
 GRAVITY_CONST = 0.2
 TICK_RATE = 60
 RENDER_SCALE = 4.0
+VOID_HEIGHT = 400
 
 # Offset in image render position to match collision
-ANIM_OFFSET = (-2, -8)
+PLAYER_ANIM_OFFSET = (-2, -8)
 DASH_ANIM_OFFSET = (-8, -8)
+
+# Collectable constants
+COLLECTABLE_SIZES = {
+    'grub' : (30, 30),
+}
+COLLECTABLE_OFFSETS = {
+    'grub' : (0, 11),
+}
 
 # Player constants
 MOVEMENT_X_SCALE = 1.8
@@ -50,7 +59,7 @@ class PhysicsEntity:
 
         # Animation and framing
         self.action = ''
-        self.anim_offset = ANIM_OFFSET
+        self.anim_offset = (0, 0)
         self.flip = False
         self.set_action('idle')
 
@@ -133,6 +142,26 @@ class PhysicsEntity:
         """
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
 
+class Collectable(PhysicsEntity):
+    
+    def __init__(self, game, pos, c_type):
+        self.size = COLLECTABLE_SIZES[c_type]
+        self.game = game
+        self.pos = (pos[0] + COLLECTABLE_OFFSETS['grub'][0], pos[1] + COLLECTABLE_OFFSETS['grub'][1])
+
+        super().__init__(game, 'collectables/grub', pos, self.size)
+
+    def update(self):
+        
+        if self.entity_rect().colliderect(self.game.player.entity_rect()):
+            self.collect()
+
+        self.animation.update()
+        
+    def collect(self):
+        
+        self.set_action('collect')
+        
 
 
 class Player(PhysicsEntity):
@@ -187,6 +216,10 @@ class Player(PhysicsEntity):
         else:
             self.gravity = GRAVITY_CONST
     
+        # Set pos to spawn if falling into void
+        if self.pos[1] > VOID_HEIGHT:
+            self.pos = self.game.player_spawn_pos.copy()
+            self.velocity[1] = 0
 
         # Update collision and position based on movement
         super().update(tilemap, movement=movement)
@@ -196,7 +229,7 @@ class Player(PhysicsEntity):
         self.wall_jump_timer += 1
         self.dash_cooldown_timer += 1
         self.wall_slide = False
-        self.anim_offset = ANIM_OFFSET
+        self.anim_offset = PLAYER_ANIM_OFFSET
 
         # Reset upon touching ground
         if self.collisions['down']:
@@ -329,3 +362,4 @@ class Player(PhysicsEntity):
             self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
             self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
             return True
+    

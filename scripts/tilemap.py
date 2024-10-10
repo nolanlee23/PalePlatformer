@@ -54,7 +54,7 @@ class Tilemap:
         self.tile_size = map_data['tile_size']
         self.offgrid_tiles = map_data['offgrid']
 
-    def extract(self, id_pairs, keep=True):
+    def extract(self, id_pairs, keep=False):
         """
         Returns a list of all tile and offgrid tiles with the given (type, variant) pair
         Deletes all returned tiles if keep is False

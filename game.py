@@ -1,7 +1,7 @@
 import pygame
 import sys
 
-from scripts.entities import PhysicsEntity, Player
+from scripts.entities import PhysicsEntity, Collectable, Player
 from scripts.utils import load_image, load_images, Animation
 from scripts.tilemap import Tilemap
 from scripts.particle import Particle
@@ -11,9 +11,9 @@ SCREEN_SIZE = (1280, 960)
 DISPLAY_SIZE = (320, 240)
 RENDER_SCALE = 4.0
 TICK_RATE = 60
-PLAYER_START_POS = (0, 90)
+PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (10, 14)
-CAMERA_SMOOTH = 11
+CAMERA_SMOOTH = 12
 
 class Game:
 
@@ -36,6 +36,7 @@ class Game:
             'stone' : load_images('tiles/stone'),
             'decor' : load_images('tiles/decor'),
             'large_decor' : load_images('tiles/large_decor'),
+            'spawners' : load_images('tiles/spawners'),
             'player/idle' : Animation(load_images('player/idle')),
             'player/run' : Animation(load_images('player/run'), img_dur=5),
             'player/jump' : Animation(load_images('player/jump')),
@@ -46,11 +47,15 @@ class Game:
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
+            'collectables/grub/idle' : Animation(load_images('collectables/grub/idle')),
+            'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
         }
 
         # Player Init
+        self.player_spawn_pos = PLAYER_START_POS
         self.player = Player(self, PLAYER_START_POS, PLAYER_SIZE)
         self.player_movement = [False, False]
+        
 
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
@@ -58,6 +63,15 @@ class Game:
 
         # Particle Init
         self.particles = []
+
+        # Entity Init
+        self.collectables = []
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1)]):
+            if spawner['variant'] == 0:
+                self.player.pos = spawner['pos']
+                self.player_spawn_pos = spawner['pos'].copy()
+            if spawner['variant'] == 1:
+                self.collectables.append(Collectable(self, spawner['pos'], 'grub'))
 
         # Camera Init
         self.scroll = [0, 0]
@@ -108,6 +122,11 @@ class Game:
 
             # Draw tiles
             self.tilemap.render(self.display, offset=render_scroll)
+
+            # Update collectables
+            for collectable in self.collectables.copy():
+                collectable.update()
+                collectable.render(self.display, offset=render_scroll)
 
             # Update player X movement
             self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
