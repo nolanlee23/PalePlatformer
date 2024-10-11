@@ -66,6 +66,7 @@ class Game:
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
             'collectables/grub/idle' : Animation(load_images('collectables/grub/idle')),
             'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
+            'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
         }
 
         # Load audio
@@ -85,11 +86,12 @@ class Game:
             'grub_free_1' : pygame.mixer.Sound('sfx/grub_free_1.wav'),
             'grub_free_2' : pygame.mixer.Sound('sfx/grub_free_2.wav'),
             'grub_free_3' : pygame.mixer.Sound('sfx/grub_free_3.wav'),
-        
             'grub_break' : pygame.mixer.Sound('sfx/grub_break.wav'),
             'grub_burrow' : pygame.mixer.Sound('sfx/grub_burrow.wav'),
             'grub_sad_idle_1' : pygame.mixer.Sound('sfx/grub_sad_idle_1.wav'),
             'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
+            'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
+            'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
         }
 
         # Initialize audio volume
@@ -112,6 +114,9 @@ class Game:
         self.sfx['grub_burrow'].set_volume(0.4)
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
+        self.sfx['ability_pickup'].set_volume(0.3)
+        self.sfx['ability_info'].set_volume(0.1)
+        
 
         # Player Init
         self.player_spawn_pos = PLAYER_START_POS
@@ -137,12 +142,14 @@ class Game:
 
         # Entity Init
         self.collectables = []
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2)]):
             if spawner['variant'] == 0:
                 self.player.pos = spawner['pos']
                 self.player_spawn_pos = spawner['pos'].copy()
             if spawner['variant'] == 1:
                 self.collectables.append(Collectable(self, spawner['pos'], 'grub'))
+            if spawner['variant'] == 2:
+                self.collectables.append(Collectable(self, spawner['pos'], 'cloak_pickup'))
 
         # Camera Init
         self.scroll = [0, 0]
@@ -181,8 +188,12 @@ class Game:
                         self.player.holding_down = True
                     if event.key == pygame.K_SPACE:     # SPACE is jump
                         self.player.jump()
-                    if event.key == pygame.K_LSHIFT:     # SHIFT is dash
+                    if event.key == pygame.K_LSHIFT:    # SHIFT is dash
                         self.player.dash()
+                    if event.key == pygame.K_v:         # V is dev unlock
+                        self.player.has_cloak = True
+                        self.player.has_claw = True
+                        self.player.has_wings = True
 
                 # Keystroke up
                 if event.type == pygame.KEYUP:
