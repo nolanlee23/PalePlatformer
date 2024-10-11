@@ -4,16 +4,13 @@ import random
 
 from .particle import Particle
 
-# Physics constants
+# Universal physics constants
 TERMINAL_VELOCITY = 6.0
 GRAVITY_CONST = 0.2
 TICK_RATE = 60
 RENDER_SCALE = 4.0
 VOID_HEIGHT = 400
 
-# Offset in image render position to match collision
-PLAYER_ANIM_OFFSET = (-2, -8)
-DASH_ANIM_OFFSET = (-8, -8)
 
 # Collectable constants
 COLLECTABLE_SIZES = {
@@ -23,26 +20,32 @@ COLLECTABLE_OFFSETS = {
     'grub' : (0, 11),
 }
 
-# Player constants
+# Player physics constants
 MOVEMENT_X_SCALE = 1.8
-RUN_PARTICLE_DELAY = 10
 JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
 AIR_JUMP_Y_VEL = -4.4
-NUM_DASHES = 1
+NUM_AIR_DASHES = 1
 VARIABLE_JUMP_SHEAR = 6.0
 AIRTIME_BUFFER = 4
 LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
+DASH_X_SCALE = 4
+DASH_TICK = 14
+DASH_COOLDOWN_TICK = 20
 WALL_SLIDE_VEL = 1.25
 WALL_JUMP_Y = -4.5
 WALL_JUMP_TICK_CUTOFF = 9
 WALL_JUMP_TICK_STALL = 2
-DASH_X_SCALE = 4
-DASH_TICK = 14
-DASH_COOLDOWN_TICK = 20
+
+# Player animation constants
+PLAYER_ANIM_OFFSET = (-2, -8)
+DASH_ANIM_OFFSET = (-8, -8)
+RUN_PARTICLE_DELAY = 10
 DASH_PARTICLE_VEL = 2
 DASH_TRAIL_VARIANCE = 0.3
+NUM_HITSTUN_PARTICLES = 20
+HITSTUN_PARTICLE_VEL = 1
 
 class PhysicsEntity:
 
@@ -159,17 +162,21 @@ class Collectable(PhysicsEntity):
         self.animation.update()
         
     def collect(self):
-        
+
         self.set_action('collect')
         
-
 
 class Player(PhysicsEntity):
     """
     PhysicsEntity subclass to handle player-specific animation and input parameters
     """
     def __init__(self, game, pos, size):
+
         super().__init__(game, 'player', pos, size)
+
+        # Control variables
+        self.intangibility_timer = 0
+        self.can_move = True
 
         # Jump and wall jump variables
         self.air_time = 0                               # Time since leaving ground
@@ -179,7 +186,7 @@ class Player(PhysicsEntity):
         self.wall_jump_direction = False                # False is left jump (right wall), True is right jump (left wall)
 
         # Control dash variables
-        self.dashes = NUM_DASHES
+        self.dashes = NUM_AIR_DASHES
         self.dash_timer = 0
         self.dash_cooldown_timer = 0
 
@@ -227,11 +234,9 @@ class Player(PhysicsEntity):
         else:
             self.gravity = GRAVITY_CONST
     
-        # Set pos to world spawn if falling into void
+        # Void out and death warp if player falls below given Y value
         if self.pos[1] > VOID_HEIGHT:
-            self.pos = self.game.player_spawn_pos.copy()
-            self.velocity[1] = 0
-            self.gravity = GRAVITY_CONST
+            self.game.fade_out = True
 
         # Update collision and position based on movement
         super().update(tilemap, movement=movement)
@@ -248,12 +253,13 @@ class Player(PhysicsEntity):
         if self.collisions['down']:
             self.air_time = 0
             self.jumps = NUM_AIR_JUMPS
-            self.dashes = NUM_DASHES
+            self.dashes = NUM_AIR_DASHES
+            self.game.player_spawn_pos = self.pos.copy()
 
         # Reset upon grabbing walls
         if self.collisions['right'] or self.collisions['left']:
             self.jumps = NUM_AIR_JUMPS
-            self.dashes = NUM_DASHES
+            self.dashes = NUM_AIR_DASHES
 
 
         # Decrement dash timer towards 0 from both sides
@@ -383,7 +389,7 @@ class Player(PhysicsEntity):
         if not self.dash_timer and not self.wall_slide and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and not self.collisions['right'] and not self.collisions['left']:
         # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
-        # Start dash and dash cooldown timers, sign of dash timer determines direction of dash
+        # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
             if self.flip:
                 self.dash_timer = -DASH_TICK
                 dash_particle_vel = (DASH_PARTICLE_VEL, 0)
@@ -391,8 +397,23 @@ class Player(PhysicsEntity):
                 self.dash_timer = DASH_TICK
                 dash_particle_vel = (-DASH_PARTICLE_VEL, 0)
             self.dash_cooldown_timer = -DASH_TICK
+
             self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
             self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
             self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
+
             return True
+        
+    def death_warp(self):
+        self.pos = self.game.player_spawn_pos.copy()
+        self.velocity[1] = 0
+        self.gravity = GRAVITY_CONST
+        self.set_action('idle')
+    
+    def hitstun_animation(self):
+        self.set_action('hitstun')
+        self.can_move = False
+        for i in range(NUM_HITSTUN_PARTICLES):
+            hitstun_particle_vel = (random.uniform(-5, 5), random.uniform(-5, 5)) * HITSTUN_PARTICLE_VEL
+            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, hitstun_particle_vel, frame=0))
     

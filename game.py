@@ -6,7 +6,7 @@ from scripts.utils import load_image, load_images, Animation
 from scripts.tilemap import Tilemap
 from scripts.particle import Particle
 
-# Constants
+# Game Constants
 SCREEN_SIZE = (1280, 960)
 DISPLAY_SIZE = (320, 240)
 RENDER_SCALE = 4.0
@@ -16,6 +16,7 @@ PLAYER_SIZE = (10, 14)
 CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
 LOOK_THRESHOLD = 30
+FADE_SPEED = 8
 
 class Game:
 
@@ -28,8 +29,15 @@ class Game:
         self.screen = pygame.display.set_mode(SCREEN_SIZE)
         pygame.display.set_caption("PixelKnight")
 
-        # 1/2 scale display used for rendering, scale up to screen (render canvas)
+        # Scaled display used for all rendering, scale up to screen before final render
         self.display = pygame.Surface(DISPLAY_SIZE)
+
+        # Blackout surface for level transition and death effects
+        self.blackout_surf = pygame.Surface(DISPLAY_SIZE)
+        self.blackout_surf.fill((0, 0, 0))
+        self.blackout_alpha = 0
+        self.fade_in = False
+        self.fade_out = False
 
         # Load assets
         self.assets = {
@@ -47,6 +55,7 @@ class Game:
             'player/fall' : Animation(load_images('player/fall')),
             'player/wall_slide' : Animation(load_images('player/wall_slide')),
             'player/dash' : Animation(load_images('player/cloak'), img_dur=3, loop=False),
+            'player/hitstun' : Animation(load_images('player/hitstun')),
             'particle/dash_particle' : Animation(load_images('particles/cloak_particle'), img_dur=3, loop=False),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
@@ -60,10 +69,16 @@ class Game:
         self.player = Player(self, PLAYER_START_POS, PLAYER_SIZE)
         self.player_movement = [False, False]
         
-
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
-        self.tilemap.load('maps/map.json')
+        self.load_map('0')
+
+
+    def load_map(self, map_id):
+        """
+        Load the specified map and initialize game state
+        """
+        self.tilemap.load('maps/' + str(map_id) + '.json')
 
         # Particle Init
         self.particles = []
@@ -141,7 +156,7 @@ class Game:
             self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / self.camera_smooth
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
-            # Draw tiles
+            # Render tilemap
             self.tilemap.render(self.display, offset=render_scroll)
 
             # Update collectables
@@ -149,8 +164,9 @@ class Game:
                 collectable.update()
                 collectable.render(self.display, offset=render_scroll)
 
-            # Update player X movement
-            self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
+            # Update player movement and animation
+            if self.player.can_move:
+                self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
             
             # Render player
             self.player.render(self.display, offset=render_scroll)
@@ -162,6 +178,37 @@ class Game:
                 if kill:
                     self.particles.remove(particle)
             
+            # Freeze player when fading in or out from death warp
+            if self.fade_out:
+                # First few frames
+                if self.blackout_alpha > 0 and self.blackout_alpha < FADE_SPEED * 3:
+                    self.player.hitstun_animation()
+                # Fading out
+                if self.blackout_alpha < 255:
+                    self.blackout_alpha = min(255, self.blackout_alpha + FADE_SPEED)
+                else:
+                # Black screen
+                    self.player.death_warp()
+                    self.fade_out = False
+                    self.fade_in = True
+            if self.fade_in:
+                # First frame
+                if self.blackout_alpha == 255:
+                    self.player.intangibility_timer = 60
+                if self.blackout_alpha > 0:
+                # Fading in
+                    self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED)
+                else:
+                # Full opacity
+                    self.player.can_move = True
+                    self.player.set_action('idle')
+                    self.fade_in = False
+                
+
+            # Render and update blackout surface
+            self.blackout_surf.set_alpha(self.blackout_alpha)
+            self.display.blit(self.blackout_surf)
+
             # Render display onto screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
 
