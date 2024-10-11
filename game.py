@@ -16,13 +16,14 @@ PLAYER_SIZE = (10, 14)
 CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
 LOOK_THRESHOLD = 30
-FADE_SPEED = 8
+FADE_SPEED = 6
 
 class Game:
 
     def __init__(self):
 
         pygame.init()
+        pygame.mixer.init()
         self.clock = pygame.time.Clock()
 
         # full size screen used for window (container)
@@ -47,6 +48,7 @@ class Game:
             'decor' : load_images('tiles/decor'),
             'large_decor' : load_images('tiles/large_decor'),
             'spawners' : load_images('tiles/spawners'),
+            'spikes' : load_images('tiles/spikes'),
             'player/idle' : Animation(load_images('player/idle')),
             'player/look_up' : Animation(load_images('player/look_up'), img_dur=4, loop=False),
             'player/look_down' : Animation(load_images('player/look_down'), img_dur=4, loop=False),
@@ -56,6 +58,8 @@ class Game:
             'player/wall_slide' : Animation(load_images('player/wall_slide')),
             'player/dash' : Animation(load_images('player/cloak'), img_dur=3, loop=False),
             'player/hitstun' : Animation(load_images('player/hitstun')),
+            'player/kneel' : Animation(load_images('player/kneel')),
+            'player/float' : Animation(load_images('player/float')),
             'particle/dash_particle' : Animation(load_images('particles/cloak_particle'), img_dur=3, loop=False),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
@@ -64,6 +68,51 @@ class Game:
             'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
         }
 
+        # Load audio
+        self.sfx = {
+            'run_grass' : pygame.mixer.Sound('sfx/run_grass.wav'),
+            'run_stone' : pygame.mixer.Sound('sfx/run_stone.wav'),
+            'jump' : pygame.mixer.Sound('sfx/jump.wav'),
+            'land' : pygame.mixer.Sound('sfx/land.wav'),
+            'falling' : pygame.mixer.Sound('sfx/falling.wav'),
+            'wings' : pygame.mixer.Sound('sfx/wings.wav'),
+            'dash' : pygame.mixer.Sound('sfx/dash.wav'),
+            'cloak' : pygame.mixer.Sound('sfx/cloak.wav'),
+            'hitstun' : pygame.mixer.Sound('sfx/damage.wav'),
+            'wall_jump' : pygame.mixer.Sound('sfx/wall_jump.wav'),
+            'wall_slide' : pygame.mixer.Sound('sfx/wall_slide.wav'),
+            'mantis_claw' : pygame.mixer.Sound('sfx/mantis_claw.wav'),
+            'grub_free_1' : pygame.mixer.Sound('sfx/grub_free_1.wav'),
+            'grub_free_2' : pygame.mixer.Sound('sfx/grub_free_2.wav'),
+            'grub_free_3' : pygame.mixer.Sound('sfx/grub_free_3.wav'),
+        
+            'grub_break' : pygame.mixer.Sound('sfx/grub_break.wav'),
+            'grub_burrow' : pygame.mixer.Sound('sfx/grub_burrow.wav'),
+            'grub_sad_idle_1' : pygame.mixer.Sound('sfx/grub_sad_idle_1.wav'),
+            'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
+        }
+
+        # Initialize audio volume
+        self.sfx['run_grass'].set_volume(0.2)
+        self.sfx['run_stone'].set_volume(0.2)
+        self.sfx['jump'].set_volume(0.15)
+        self.sfx['land'].set_volume(0.08)
+        self.sfx['falling'].set_volume(0.2)
+        self.sfx['wings'].set_volume(0.2)
+        self.sfx['dash'].set_volume(0.2)
+        self.sfx['cloak'].set_volume(0.1)
+        self.sfx['hitstun'].set_volume(0.2)
+        self.sfx['wall_jump'].set_volume(0.18 )
+        self.sfx['wall_slide'].set_volume(0.25)
+        self.sfx['mantis_claw'].set_volume(0.15)
+        self.sfx['grub_free_1'].set_volume(0.2)
+        self.sfx['grub_free_2'].set_volume(0.2)
+        self.sfx['grub_free_3'].set_volume(0.3)
+        self.sfx['grub_break'].set_volume(0.15)
+        self.sfx['grub_burrow'].set_volume(0.4)
+        self.sfx['grub_sad_idle_1'].set_volume(0.2)
+        self.sfx['grub_sad_idle_2'].set_volume(0.2)
+
         # Player Init
         self.player_spawn_pos = PLAYER_START_POS
         self.player = Player(self, PLAYER_START_POS, PLAYER_SIZE)
@@ -71,7 +120,10 @@ class Game:
         
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
-        self.load_map('0')
+        self.level_select = 0
+        self.load_map(self.level_select)
+
+        
 
 
     def load_map(self, map_id):
@@ -96,11 +148,17 @@ class Game:
         self.scroll = [0, 0]
         
 
-    # Runs 60 times per second
+   
     def run(self):
         """
         Primary game loop; controls rendering, game initialization, and player input
         """
+        # Start looping music playback
+        pygame.mixer.music.load('sfx/music_crossroads.wav')
+        pygame.mixer.music.set_volume(0.08)
+        pygame.mixer.music.play(-1)
+
+         # Runs 60 times per second
         while True:
 
             # Event loop
@@ -151,9 +209,50 @@ class Game:
                 self.scroll = [self.scroll[0], self.scroll[1] + LOOK_OFFSET]
                 self.camera_smooth = CAMERA_SMOOTH * 1.75
 
+            # Freeze player when fading in or out from death warp
+            if self.fade_out:
+
+                # First frame of fade out
+                if self.blackout_alpha > 0 and self.blackout_alpha <= FADE_SPEED :
+                    self.player.hitstun_animation()
+
+                # Fading out
+                if self.blackout_alpha < 255:
+                    self.blackout_alpha = min(255, self.blackout_alpha + FADE_SPEED)
+
+                else:
+                # Black screen
+                    self.camera_smooth = 1
+                    self.player.death_warp()
+                    self.fade_out = False
+                    self.fade_in = True
+
+            if self.fade_in:
+
+                # First frame of fade in
+                if self.blackout_alpha == 255:
+                    self.player.intangibility_timer = 60
+
+                # Last few frames of fade in
+                if self.blackout_alpha < 50:
+                    self.player.set_action('idle')    
+                if self.blackout_alpha > 0:
+
+                # Fading in
+                    self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED)
+                else:
+
+                # Full opacity
+                    self.camera_smooth = CAMERA_SMOOTH
+                    self.player.can_move = True
+                    self.player.air_time = 0
+                    self.player.set_action('idle')
+                    self.fade_in = False
+
             # Control Camera
             self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / self.camera_smooth
             self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / self.camera_smooth
+
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
             # Render tilemap
@@ -178,31 +277,6 @@ class Game:
                 if kill:
                     self.particles.remove(particle)
             
-            # Freeze player when fading in or out from death warp
-            if self.fade_out:
-                # First few frames
-                if self.blackout_alpha > 0 and self.blackout_alpha < FADE_SPEED * 3:
-                    self.player.hitstun_animation()
-                # Fading out
-                if self.blackout_alpha < 255:
-                    self.blackout_alpha = min(255, self.blackout_alpha + FADE_SPEED)
-                else:
-                # Black screen
-                    self.player.death_warp()
-                    self.fade_out = False
-                    self.fade_in = True
-            if self.fade_in:
-                # First frame
-                if self.blackout_alpha == 255:
-                    self.player.intangibility_timer = 60
-                if self.blackout_alpha > 0:
-                # Fading in
-                    self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED)
-                else:
-                # Full opacity
-                    self.player.can_move = True
-                    self.player.set_action('idle')
-                    self.fade_in = False
                 
 
             # Render and update blackout surface

@@ -24,7 +24,7 @@ AUTOTILE_MAP = {
 # Tiles that will autotile
 AUTOTILE_TILES = {'grass', 'stone'}
 # Tiles that interact with physics and collision
-PHYSICS_TILES = {'grass', 'stone'}
+PHYSICS_TILES = {'grass', 'stone', 'spikes'}
 
 class Tilemap:
 
@@ -36,7 +36,7 @@ class Tilemap:
 
     def save(self, path):
         """
-        Write tilemap info into map.JSON
+        Write tilemap info to maps.JSON
         """
         fil = open(path, 'w')
         json.dump({'tilemap': self.tilemap, 'tile_size': self.tile_size, 'offgrid': self.offgrid_tiles}, fil)
@@ -44,7 +44,7 @@ class Tilemap:
 
     def load(self, path):
         """
-        Read tilemap info from map.JSON
+        Read tilemap info from maps.JSON
         """
         fil = open(path, 'r')
         map_data = json.load(fil)
@@ -58,6 +58,7 @@ class Tilemap:
         """
         Returns a list of all tile and offgrid tiles with the given (type, variant) pair
         Deletes all returned tiles if keep is False
+        Allows entity spawning tiles to be placed in the world
         """
         matches = []
 
@@ -108,9 +109,22 @@ class Tilemap:
                 output_rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size))
         return output_rects
     
+    def tile_below(self, pos):
+        """
+        Helper method for determining properties of tile below if collisions[down] 
+        """
+
+        # Convert pixel position to grid position with integer division
+        below_tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))
+
+        below_tile = str(below_tile_loc[0]) + ';' + str(below_tile_loc[1] + 1)
+        if below_tile in self.tilemap:
+            return self.tilemap[below_tile]
+        return None
+    
     def autotile(self):
         """
-        Examines neighbors of every tile and applies rules of autotiling
+        Examines neighbors of every tile in map and applies rules of autotiling
         """
         for loc in self.tilemap:
         # Get neighboring tiles of current tile

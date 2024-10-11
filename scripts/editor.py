@@ -33,12 +33,14 @@ class Editor:
             'decor' : load_images('tiles/decor'),
             'large_decor' : load_images('tiles/large_decor'),
             'spawners' : load_images('tiles/spawners'),
+            'spikes' : load_images('tiles/spikes'),
         }
 
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
+        self.level_select = 0
         try:
-            self.tilemap.load('maps/0.json')
+            self.tilemap.load('maps/' + str(self.level_select) + '.json')
         except FileNotFoundError:
             pass
 
@@ -119,10 +121,11 @@ class Editor:
                     if event.key == pygame.K_t:         # T is autotile
                         self.tilemap.autotile()
                     if event.key == pygame.K_RETURN:    # RETURN is save file
-                        self.tilemap.save('maps/map.json')
+                        self.tilemap.save('maps/' + str(self.level_select) + '.json')
+                        print('File saved')
                     if event.key == pygame.K_l:         # L is load file
                         try:
-                            self.tilemap.load('maps/map.json')
+                            self.tilemap.load('maps/' + str(self.level_select) + '.json')
                         except FileNotFoundError:
                             pass
                     if event.key == pygame.K_l:
