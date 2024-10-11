@@ -28,9 +28,9 @@ MOVEMENT_X_SCALE = 1.8
 RUN_PARTICLE_DELAY = 10
 JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
-AIR_JUMP_Y_VEL = -4.2
+AIR_JUMP_Y_VEL = -4.4
 NUM_DASHES = 1
-VARIABLE_JUMP_SHEAR = 8.0
+VARIABLE_JUMP_SHEAR = 6.0
 AIRTIME_BUFFER = 4
 LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
@@ -170,14 +170,25 @@ class Player(PhysicsEntity):
     """
     def __init__(self, game, pos, size):
         super().__init__(game, 'player', pos, size)
+
+        # Jump and wall jump variables
         self.air_time = 0                               # Time since leaving ground
         self.wall_jump_timer = 0                         # Time since leaving wall from wall jump
         self.wall_slide = False
         self.jumps = NUM_AIR_JUMPS
         self.wall_jump_direction = False                # False is left jump (right wall), True is right jump (left wall)
+
+        # Control dash variables
         self.dashes = NUM_DASHES
         self.dash_timer = 0
         self.dash_cooldown_timer = 0
+
+        # Camera control for player holding up or down while idle for a time
+        self.idle_timer = 0
+        self.holding_up = False
+        self.looking_up = False
+        self.holding_down = False
+        self.looking_down = False
         
 
     def update(self, tilemap, movement=(0, 0)):
@@ -216,10 +227,11 @@ class Player(PhysicsEntity):
         else:
             self.gravity = GRAVITY_CONST
     
-        # Set pos to spawn if falling into void
+        # Set pos to world spawn if falling into void
         if self.pos[1] > VOID_HEIGHT:
             self.pos = self.game.player_spawn_pos.copy()
             self.velocity[1] = 0
+            self.gravity = GRAVITY_CONST
 
         # Update collision and position based on movement
         super().update(tilemap, movement=movement)
@@ -230,6 +242,7 @@ class Player(PhysicsEntity):
         self.dash_cooldown_timer += 1
         self.wall_slide = False
         self.anim_offset = PLAYER_ANIM_OFFSET
+        
 
         # Reset upon touching ground
         if self.collisions['down']:
@@ -250,8 +263,13 @@ class Player(PhysicsEntity):
             self.dash_timer = min(0, self.dash_timer + 1)
     
 
-        ### ANIMATION ###
+        ### ANIMATION HEIRARCHY ###
 
+        # Update animationm variables
+        idling = False
+        self.looking_down = False
+        self.looking_up = False
+        
 
         # Check for wall slide, reduce Y speed if touching wall
         if (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0:
@@ -294,9 +312,24 @@ class Player(PhysicsEntity):
                 run_particle_start_f = random.randint(0, 1)
                 run_particle_vel = (random.randint(-1, 1) / 3, random.randint(-1, 1) / 5)
                 self.game.particles.append(Particle(self.game, 'run_particle', self.entity_rect().midbottom, velocity=run_particle_vel, frame=run_particle_start_f))
+        elif self.holding_up:
+            self.looking_up = True
+            idling = True
+            self.set_action('look_up')     # Looking up
+        elif self.holding_down:
+            self.looking_down = True
+            idling = True
+            self.set_action('look_down')    # Looking down
         else:
+            idling = True
             self.set_action('idle')         # Idle
-        
+            
+        # Add delay in camera movement to avoid rapid changes
+        if idling:
+            self.idle_timer += 1
+        else:
+            self.idle_timer = 0
+            
 
     def jump(self):
         """

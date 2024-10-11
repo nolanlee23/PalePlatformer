@@ -13,7 +13,9 @@ RENDER_SCALE = 4.0
 TICK_RATE = 60
 PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (10, 14)
-CAMERA_SMOOTH = 12
+CAMERA_SMOOTH = 10
+LOOK_OFFSET = 4.5
+LOOK_THRESHOLD = 30
 
 class Game:
 
@@ -38,6 +40,8 @@ class Game:
             'large_decor' : load_images('tiles/large_decor'),
             'spawners' : load_images('tiles/spawners'),
             'player/idle' : Animation(load_images('player/idle')),
+            'player/look_up' : Animation(load_images('player/look_up'), img_dur=4, loop=False),
+            'player/look_down' : Animation(load_images('player/look_down'), img_dur=4, loop=False),
             'player/run' : Animation(load_images('player/run'), img_dur=5),
             'player/jump' : Animation(load_images('player/jump')),
             'player/fall' : Animation(load_images('player/fall')),
@@ -98,6 +102,10 @@ class Game:
                         self.player_movement[0] = True
                     if event.key == pygame.K_d:         # D is right
                         self.player_movement[1] = True
+                    if event.key == pygame.K_w:         # W is up
+                        self.player.holding_up = True
+                    if event.key == pygame.K_s:         # S is down
+                        self.player.holding_down = True
                     if event.key == pygame.K_SPACE:     # SPACE is jump
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT:     # SHIFT is dash
@@ -109,15 +117,28 @@ class Game:
                         self.player_movement[0] = False
                     if event.key == pygame.K_d:
                         self.player_movement[1] = False
+                    if event.key == pygame.K_w:         
+                        self.player.holding_up = False
+                    if event.key == pygame.K_s:         
+                        self.player.holding_down = False
                     if event.key == pygame.K_SPACE:
                         self.player.jump_release()      # Jump release for variable jump height
 
             # Draw background
             self.display.blit(self.assets['background'], (0,0))
 
+            # Adjust camera scroll and increase camera smoothness based on if player is looking vertically
+            self.camera_smooth = CAMERA_SMOOTH
+            if self.player.looking_up and self.player.idle_timer > LOOK_THRESHOLD:
+                self.scroll = [self.scroll[0], self.scroll[1] - LOOK_OFFSET]
+                self.camera_smooth = CAMERA_SMOOTH * 1.75
+            if self.player.looking_down and self.player.idle_timer > LOOK_THRESHOLD:
+                self.scroll = [self.scroll[0], self.scroll[1] + LOOK_OFFSET]
+                self.camera_smooth = CAMERA_SMOOTH * 1.75
+
             # Control Camera
-            self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / CAMERA_SMOOTH
-            self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / CAMERA_SMOOTH * 3
+            self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / self.camera_smooth
+            self.scroll[1] += (self.player.entity_rect().centery - self.display.get_height() / 2 - self.scroll[1]) / self.camera_smooth
             render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
             # Draw tiles
@@ -132,7 +153,7 @@ class Game:
             self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
             
             # Render player
-            self.player.render(self.display, offset=self.scroll)
+            self.player.render(self.display, offset=render_scroll)
 
             # Update and render particles
             for particle in self.particles.copy():
