@@ -64,7 +64,9 @@ class Game:
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
+            'collectables/respawn/idle' : Animation(load_images('collectables/respawn/idle')),
             'collectables/grub/idle' : Animation(load_images('collectables/grub/idle')),
+            'collectables/grub/alert' : Animation(load_images('collectables/grub/alert')),
             'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
             'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
         }
@@ -88,6 +90,7 @@ class Game:
             'grub_free_3' : pygame.mixer.Sound('sfx/grub_free_3.wav'),
             'grub_break' : pygame.mixer.Sound('sfx/grub_break.wav'),
             'grub_burrow' : pygame.mixer.Sound('sfx/grub_burrow.wav'),
+            'grub_alert' : pygame.mixer.Sound('sfx/grub_alert.wav'),
             'grub_sad_idle_1' : pygame.mixer.Sound('sfx/grub_sad_idle_1.wav'),
             'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
@@ -112,6 +115,7 @@ class Game:
         self.sfx['grub_free_3'].set_volume(0.3)
         self.sfx['grub_break'].set_volume(0.15)
         self.sfx['grub_burrow'].set_volume(0.4)
+        self.sfx['grub_alert'].set_volume(0.3)
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
@@ -142,13 +146,15 @@ class Game:
 
         # Entity Init
         self.collectables = []
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3)]):
             if spawner['variant'] == 0:
-                self.player.pos = spawner['pos']
-                self.player_spawn_pos = spawner['pos'].copy()
+                self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
             if spawner['variant'] == 1:
                 self.collectables.append(Collectable(self, spawner['pos'], 'grub'))
             if spawner['variant'] == 2:
+                self.player.pos = spawner['pos']
+                self.player_spawn_pos = spawner['pos'].copy()
+            if spawner['variant'] == 3:
                 self.collectables.append(Collectable(self, spawner['pos'], 'cloak_pickup'))
 
         # Camera Init

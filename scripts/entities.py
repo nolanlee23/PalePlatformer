@@ -14,14 +14,18 @@ VOID_HEIGHT = 400
 
 # Collectable constants
 COLLECTABLE_SIZES = {
+    'respawn' : (16, 16),
     'grub' : (30, 30),
     'cloak_pickup' : (16, 16),
 }
 COLLECTABLE_OFFSETS = {
+    'respawn' : (0, 2),
     'grub' : (0, 11),
     'cloak_pickup' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
+ALERT_NOISE_DIST = 35
+ALERT_COOLDOWN = 3
 
 # Player physics constants
 MOVEMENT_X_SCALE = 1.8
@@ -161,14 +165,20 @@ class Collectable(PhysicsEntity):
 
         self.collect_timer = 0
         self.idle_noise_timer = GRUB_NOISE_DIST
+        self.alert_noise_timer = TICK_RATE * ALERT_COOLDOWN
+        self.alerted = False
         self.dist_to_player = 0
+        self.x_dist = 0
+        self.y_dist = 0
         self.rect = 0
+        self.player_rect = 0
         
 
     def update(self):
         
         self.animation.update()
         self.idle_noise_timer += 1
+        self.alert_noise_timer += 1
 
         # Collect upon player collision
         if self.entity_rect().colliderect(self.game.player.entity_rect()):
@@ -180,35 +190,59 @@ class Collectable(PhysicsEntity):
 
         # Update distance to player
         self.rect = self.entity_rect()
-        player_rect = self.game.player.entity_rect()
-        x_dist = self.rect.x - player_rect.x
-        y_dist = self.rect.y - player_rect.y
-        self.dist_to_player = math.sqrt(x_dist**2 + y_dist**2)
+        self.player_rect = self.game.player.entity_rect()
+        self.x_dist = self.rect.centerx - self.player_rect.x
+        self.y_dist = self.rect.centery - self.player_rect.y
+        self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
-        self.pos = self.pos[0] + 0, self.pos[1] + 0
+        # Update alerted status
+        if self.dist_to_player >= ALERT_NOISE_DIST:
+            self.alerted = False
+
+
+            
+        
+
 
         # Play time based sound effects
-        if self.type == 'collectables/cloak_pickup':
-            if self.collect_timer == 10:
-                pass
-
         if self.type == 'collectables/grub':
 
-            # Sad grub noises if within distance and after interval of seconds
-            if self.dist_to_player < GRUB_NOISE_DIST and self.collect_timer == 0 and self.idle_noise_timer > random.randint(3, 8) * TICK_RATE:
-
+            # Sad grub noises if within distance and after random interval of seconds
+            if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.collect_timer == 0 and self.idle_noise_timer > random.randint(5, 10) * TICK_RATE:
                 rand = random.randint(1, 2)
-                rand_chance = random.randint(1, 5)
+                rand_chance = random.randint(1, 10)
                 if rand_chance == 1:
                     self.idle_noise_timer = 0
                     self.game.sfx['grub_sad_idle_' + str(rand)].set_volume((GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST))
                     self.game.sfx['grub_sad_idle_' + str(rand)].play()
 
-            # Glass break (and mute sad noises)
+
+            # Update alert status when player is very close
+            if self.dist_to_player < ALERT_NOISE_DIST and self.collect_timer == 0:
+
+                # only play alert sound if havent played in ALERT_COOLDOWN seconds
+                if self.alert_noise_timer > TICK_RATE * ALERT_COOLDOWN and not self.alerted:
+                    
+                    self.alert_noise_timer = 0
+                    self.game.sfx['grub_alert'].play()
+                    self.game.sfx['grub_sad_idle_1'].stop()
+                    self.game.sfx['grub_sad_idle_2'].stop()
+
+                self.alerted = True
+
+            # Set action based on how long ago grub was alerted
+            if self.alert_noise_timer < TICK_RATE * ALERT_COOLDOWN and self.collect_timer == 0:
+                self.set_action('alert')
+            elif self.collect_timer == 0:
+                self.set_action('idle')
+
+
+            # Glass break and fades out (and stop sad noises)
             if self.collect_timer == 2:
-                self.game.sfx['grub_sad_idle_1'].stop()
-                self.game.sfx['grub_sad_idle_2'].play()
                 self.game.sfx['grub_break'].play()
+                self.game.sfx['grub_break'].fadeout(1200)
+                self.game.sfx['grub_sad_idle_1'].stop()
+                self.game.sfx['grub_sad_idle_2'].stop()
 
             # Happy grub noises
             if self.collect_timer == 40:
@@ -223,6 +257,11 @@ class Collectable(PhysicsEntity):
         """
         Events occuring after player collides with collectable
         """
+        if self.type == 'collectables/respawn':
+            self.game.player_spawn_pos = list(self.pos)
+
+        if self.type == 'collectables/grub':
+            self.set_action('collect')
 
         if self.type == 'collectables/cloak_pickup':
             self.game.player.has_cloak = True
@@ -234,7 +273,6 @@ class Collectable(PhysicsEntity):
                 self.game.particles.append(Particle(self.game, 'dash_particle', self.game.player.entity_rect().center, hitstun_particle_vel, frame=0))
             return
 
-        self.set_action('collect')
 
         # Start timer only first frame of contact with player
         if self.collect_timer < 1:
@@ -342,16 +380,12 @@ class Player(PhysicsEntity):
         self.anim_offset = PLAYER_ANIM_OFFSET
 
         # Reset upon touching ground
-        below_tile = self.game.tilemap.tile_below(self.pos)
         if self.collisions['down']:
                 if self.air_time > AIRTIME_BUFFER:
                     self.game.sfx['land'].play()
                 self.air_time = 0
                 self.jumps = NUM_AIR_JUMPS
                 self.dashes = NUM_AIR_DASHES
-                if not below_tile == None:
-                    if not below_tile['type'] == 'spikes':
-                        self.game.player_spawn_pos = self.pos.copy()
 
         # Reset upon grabbing walls
         if self.collisions['right'] or self.collisions['left']:
@@ -548,6 +582,7 @@ class Player(PhysicsEntity):
         Teleport player to spawn point during fadeout
         """
         self.pos = self.game.player_spawn_pos.copy()
+        self.pos[1] += COLLECTABLE_OFFSETS['respawn'][1]
         self.velocity[1] = 0
         self.dash_timer = 0
         self.gravity = GRAVITY_CONST
