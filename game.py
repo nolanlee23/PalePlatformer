@@ -5,6 +5,7 @@ from scripts.entities import PhysicsEntity, Collectable, Player
 from scripts.utils import load_image, load_images, Animation
 from scripts.tilemap import Tilemap
 from scripts.particle import Particle
+from scripts.hud import HudElement
 
 # Game Constants
 SCREEN_SIZE = (1280, 960)
@@ -15,7 +16,7 @@ PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (10, 14)
 CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
-LOOK_THRESHOLD = 30
+LOOK_THRESHOLD = 20
 FADE_SPEED = 6
 
 class Game:
@@ -43,6 +44,12 @@ class Game:
         # Load assets
         self.assets = {
             'background' : load_image('backgrounds/green_cave.png'),
+            'guide_move' : load_image('hud/guide/guide_move.png'),
+            'guide_jump' : load_image('hud/guide/guide_jump.png'),
+            'guide_look' : load_image('hud/guide/guide_look.png'),
+            'guide_dash' : load_image('hud/guide/guide_dash.png'),
+            'guide_climb' : load_image('hud/guide/guide_climb.png'),
+            'guide_fly' : load_image('hud/guide/guide_fly.png'),
             'grass' : load_images('tiles/grass'),
             'stone' : load_images('tiles/stone'),
             'decor' : load_images('tiles/decor'),
@@ -102,8 +109,7 @@ class Game:
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
             'shiny_item' : pygame.mixer.Sound('sfx/shiny_item.wav'),
-            'saw_loop_1' : pygame.mixer.Sound('sfx/saw_loop_1.wav'),
-            'saw_loop_2' : pygame.mixer.Sound('sfx/saw_loop_2.wav'),
+            'saw_loop' : pygame.mixer.Sound('sfx/saw_loop.wav'),
         }
 
         # Initialize audio volume
@@ -113,25 +119,24 @@ class Game:
         self.sfx['land'].set_volume(0.08)
         self.sfx['falling'].set_volume(0.2)
         self.sfx['wings'].set_volume(0.2)
-        self.sfx['dash'].set_volume(0.2)
+        self.sfx['dash'].set_volume(0.14)
         self.sfx['cloak'].set_volume(0.1)
         self.sfx['hitstun'].set_volume(0.2)
-        self.sfx['wall_jump'].set_volume(0.18 )
+        self.sfx['wall_jump'].set_volume(0.15 )
         self.sfx['wall_slide'].set_volume(0.25)
         self.sfx['mantis_claw'].set_volume(0.15)
         self.sfx['grub_free_1'].set_volume(0.2)
         self.sfx['grub_free_2'].set_volume(0.2)
         self.sfx['grub_free_3'].set_volume(0.3)
         self.sfx['grub_break'].set_volume(0.15)
-        self.sfx['grub_burrow'].set_volume(0.4)
+        self.sfx['grub_burrow'].set_volume(0.35)
         self.sfx['grub_alert'].set_volume(0.3)
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
         self.sfx['ability_info'].set_volume(0.05)
         self.sfx['shiny_item'].set_volume(0.0)
-        self.sfx['saw_loop_1'].set_volume(0.0)  
-        self.sfx['saw_loop_2'].set_volume(0.0)
+        self.sfx['saw_loop'].set_volume(0.0)
 
         
 
@@ -143,6 +148,7 @@ class Game:
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
         self.level_select = 0
+        self.playing_timer = 0
         self.load_map(self.level_select)
 
         
@@ -176,6 +182,11 @@ class Game:
             if spawner['variant'] == 6:
                 self.collectables.append(Collectable(self, spawner['pos'], 'saw'))
 
+        # Hud Init
+        self.hud = []
+        self.hud.append(HudElement(self, self.assets['guide_move'] ,(4, 4)))
+        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(32, 4)))
+
 
         # Camera Init
         self.scroll = [0, 0]
@@ -194,7 +205,7 @@ class Game:
          # Runs 60 times per second
         while True:
 
-            # Event loop
+            # Input event loop
             for event in pygame.event.get():
 
                 # Exit the application
@@ -203,11 +214,13 @@ class Game:
                     sys.exit()
 
                 # Keystroke down
-                if event.type == pygame.KEYDOWN:
+                if event.type == pygame.KEYDOWN and self.player.can_move:
                     if event.key == pygame.K_a:         # A is left
                         self.player_movement[0] = True
+                        self.player.holding_left = True
                     if event.key == pygame.K_d:         # D is right
                         self.player_movement[1] = True
+                        self.player.holding_right = True
                     if event.key == pygame.K_w:         # W is up
                         self.player.holding_up = True
                     if event.key == pygame.K_s:         # S is down
@@ -225,8 +238,10 @@ class Game:
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_a:
                         self.player_movement[0] = False
+                        self.player.holding_left = False
                     if event.key == pygame.K_d:
                         self.player_movement[1] = False
+                        self.player.holding_right = False
                     if event.key == pygame.K_w:         
                         self.player.holding_up = False
                     if event.key == pygame.K_s:         
@@ -246,6 +261,12 @@ class Game:
                 self.scroll = [self.scroll[0], self.scroll[1] + LOOK_OFFSET]
                 self.camera_smooth = CAMERA_SMOOTH * 1.75
 
+            # Fix movement not being updated 
+            if not self.player_movement[0] and self.player.holding_left:
+                self.player_movement[0] = True
+            if not self.player_movement[1] and self.player.holding_right:
+                self.player_movement[1] = True
+
             # Freeze player when fading in or out from death warp
             if self.damage_fade_out:
 
@@ -256,6 +277,7 @@ class Game:
                 # Fading out
                 if self.blackout_alpha < 255:
                     self.blackout_alpha = min(255, self.blackout_alpha + FADE_SPEED)
+                    self.player_movement = [False, False]
 
                 else:
                 # Black screen
@@ -271,17 +293,19 @@ class Game:
                     self.player.intangibility_timer = 60
 
                 # Last few frames of fade in
-                if self.blackout_alpha < 50:
-                    self.player.set_action('idle')    
+                if self.blackout_alpha < 70:
+                    self.player.set_action('idle') 
                 if self.blackout_alpha > 0:
 
                 # Fading in
                     self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED)
+                    self.player.velocity = [0, 0]
                 else:
 
                 # Full opacity
                     self.camera_smooth = CAMERA_SMOOTH
                     self.player.can_update = True
+                    self.player.can_move = True
                     self.player.air_time = 0
                     self.player.set_action('idle')
                     self.damage_fade_in = False
@@ -314,6 +338,13 @@ class Game:
                 collectable.update()
                 collectable.render(self.display, offset=render_scroll)
 
+            # Update and render hud elements
+            for hud in self.hud.copy():
+                hud.update()
+                hud.render(self.display)
+            if self.playing_timer == 290:
+                self.hud.append(HudElement(self, self.assets['guide_look'] ,(4, 4)))
+
             # Render and update blackout surface
             self.blackout_surf.set_alpha(self.blackout_alpha)
             self.display.blit(self.blackout_surf)
@@ -323,6 +354,7 @@ class Game:
 
             # End frame
             pygame.display.update()
+            self.playing_timer += 1
             self.clock.tick(TICK_RATE)
 
 

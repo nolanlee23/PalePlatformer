@@ -4,7 +4,7 @@ FOLLOW_OFFSET = (5, 5)
 
 class Particle:
     
-    def __init__(self, game, p_type, pos, velocity=[0,0], frame=0, flip=False, follow_player=False, scale=1, opacity=255, fade_out=0):
+    def __init__(self, game, p_type, pos, velocity=[0,0], frame=0, flip=False, follow_player=False, scale=1.0, opacity=255, fade_out=0):
         self.game = game
         self.type = p_type
         self.pos = list(pos)
