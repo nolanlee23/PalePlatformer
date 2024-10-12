@@ -28,14 +28,14 @@ class Game:
         self.clock = pygame.time.Clock()
 
         # full size screen used for window (container)
-        self.screen = pygame.display.set_mode(SCREEN_SIZE)
+        self.screen = pygame.display.set_mode(SCREEN_SIZE, flags=pygame.SCALED, vsync=1)
         pygame.display.set_caption("PixelKnight")
 
         # Scaled display used for all rendering, scale up to screen before final render
         self.display = pygame.Surface(DISPLAY_SIZE)
 
         # Blackout surface for level transition and death effects
-        self.blackout_surf = pygame.Surface(DISPLAY_SIZE)
+        self.blackout_surf = pygame.Surface(SCREEN_SIZE)
         self.blackout_surf.fill((0, 0, 0))
         self.blackout_alpha = 0
         self.damage_fade_in = False
@@ -44,6 +44,7 @@ class Game:
         # Load assets
         self.assets = {
             'background' : load_image('backgrounds/green_cave.png'),
+            'grub_icon' : load_image('hud/counter/grub_icon.png'),
             'guide_move' : load_image('hud/guide/guide_move.png'),
             'guide_jump' : load_image('hud/guide/guide_jump.png'),
             'guide_look' : load_image('hud/guide/guide_look.png'),
@@ -147,8 +148,7 @@ class Game:
         
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
-        self.level_select = 0
-        self.playing_timer = 0
+        self.level_select = '0'
         self.load_map(self.level_select)
 
         
@@ -165,6 +165,7 @@ class Game:
 
         # Entity Init
         self.collectables = []
+        self.grubs_collected = 0
         for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
@@ -186,10 +187,13 @@ class Game:
         self.hud = []
         self.hud.append(HudElement(self, self.assets['guide_move'] ,(4, 4)))
         self.hud.append(HudElement(self, self.assets['guide_jump'] ,(32, 4)))
-
+        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 24, 2), fixed=True, opacity=180))
+        self.score_text = pygame.font.Font('freesansbold.ttf', 30)
+        self.score_text_back = pygame.font.Font('freesansbold.ttf', 31)
 
         # Camera Init
         self.scroll = [0, 0]
+        self.playing_timer = 0
         
 
    
@@ -345,12 +349,19 @@ class Game:
             if self.playing_timer == 290:
                 self.hud.append(HudElement(self, self.assets['guide_look'] ,(4, 4)))
 
-            # Render and update blackout surface
-            self.blackout_surf.set_alpha(self.blackout_alpha)
-            self.display.blit(self.blackout_surf)
 
-            # Render display onto screen (upscaling)
+            # Render display onto final screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
+
+            # Render layered text onto larger screen to accomodate anti aliasing
+            score_img_back = self.score_text_back.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (0, 80, 40))
+            score_img = self.score_text.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (10, 120, 80))
+            self.screen.blit(score_img_back, (SCREEN_SIZE[0] - score_img.get_width() - 9.5, 12))
+            self.screen.blit(score_img, (SCREEN_SIZE[0] - score_img.get_width() - 8, 13))
+
+            # Render and update blackout surface onto final screen
+            self.blackout_surf.set_alpha(self.blackout_alpha)
+            self.screen.blit(self.blackout_surf)
 
             # End frame
             pygame.display.update()
