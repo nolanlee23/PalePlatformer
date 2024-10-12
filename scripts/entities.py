@@ -19,6 +19,7 @@ COLLECTABLE_SIZES = {
     'cloak_pickup' : (16, 16),
     'claw_pickup' : (18, 18),
     'wings_pickup' : (22, 14),
+    'saw' : (20, 20),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
@@ -26,10 +27,13 @@ COLLECTABLE_OFFSETS = {
     'cloak_pickup' : (0, 0),
     'claw_pickup' : (0, 0),
     'wings_pickup' : (0, 0),
+    'saw' : (20, 5),
 }
 GRUB_NOISE_DIST = 200
 ALERT_NOISE_DIST = 35
 ALERT_COOLDOWN = 3
+SHINY_NOISE_DIST = 150
+SAW_NOISE_DIST = 150
 
 # Player physics constants
 MOVEMENT_X_SCALE = 1.8
@@ -163,12 +167,12 @@ class Collectable(PhysicsEntity):
     def __init__(self, game, pos, c_type):
         self.size = COLLECTABLE_SIZES[c_type]
         self.game = game
-        self.pos = (pos[0] + COLLECTABLE_OFFSETS['grub'][0], pos[1] + COLLECTABLE_OFFSETS['grub'][1])
+        self.pos = (pos[0] + COLLECTABLE_OFFSETS[c_type][0], pos[1] + COLLECTABLE_OFFSETS[c_type][1])
 
         super().__init__(game, 'collectables/' + c_type, pos, self.size)
 
         self.collect_timer = 0
-        self.idle_noise_timer = GRUB_NOISE_DIST
+        self.idle_noise_timer = 0
         self.alert_noise_timer = TICK_RATE * ALERT_COOLDOWN
         self.alerted = False
         self.dist_to_player = 0
@@ -179,7 +183,7 @@ class Collectable(PhysicsEntity):
         
 
     def update(self):
-        
+
         self.animation.update()
         self.idle_noise_timer += 1
         self.alert_noise_timer += 1
@@ -199,20 +203,33 @@ class Collectable(PhysicsEntity):
         self.y_dist = self.rect.centery - self.player_rect.y
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
-        # Update alerted status
+        # Saw has circular appearance, use distance from center for collision detection
+        if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] + 1:
+            self.game.damage_fade_out = True
+
+        # Update alerted status for grubs
         if self.dist_to_player >= ALERT_NOISE_DIST:
             self.alerted = False
 
         # Flash circle particle for pickup items
         if self.type[-6:] == 'pickup':
 
-            # Every second
+            # Every other second, pulse circle particle
             if self.idle_noise_timer % TICK_RATE * 2 == 0:
                 self.game.particles.append(Particle(self.game, 'circle_particle', self.rect.center, scale=2, opacity= 255 / 2, fade_out=2))
         
+            # Every 5 seconds, play shiny sound
+            self.game.sfx['shiny_item'].set_volume((SHINY_NOISE_DIST - self.dist_to_player) / (SHINY_NOISE_DIST * 2))
+            if self.idle_noise_timer % TICK_RATE * 5 == 0 and self.dist_to_player < SHINY_NOISE_DIST:
+                self.game.sfx['shiny_item'].play()
 
+        # Play saw blade sound effect
+        if self.type == 'collectables/saw':
+            self.game.sfx['saw_loop_2'].set_volume((SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST * 4) / 8)
+            if self.idle_noise_timer % 100 == 1 and self.dist_to_player < SAW_NOISE_DIST * 2:
+                self.game.sfx['saw_loop_2'].play()
 
-        # Play time based sound effects
+        # Play time based grub sound effects
         if self.type == 'collectables/grub':
 
             # Before collection
@@ -264,6 +281,7 @@ class Collectable(PhysicsEntity):
             # Burrowing away
             if self.collect_timer == 120:
                 self.game.sfx['grub_burrow'].play()
+
         
     def collect(self):
         """
@@ -292,12 +310,17 @@ class Collectable(PhysicsEntity):
                 particle_type = 'long_slide_particle'
 
             # Boom sound effect and particle burst
+            self.game.sfx['shiny_item'].stop()
             self.game.sfx['ability_pickup'].play()
             self.game.sfx['ability_info'].play()
             self.game.collectables.remove(self)
-            for i in range(NUM_HITSTUN_PARTICLES * 2):
+            for i in range(NUM_HITSTUN_PARTICLES):
                 hitstun_particle_vel = (random.uniform(-2, 2), random.uniform(-2, 2))
                 self.game.particles.append(Particle(self.game, particle_type, self.game.player.entity_rect().center, hitstun_particle_vel, frame=0))
+            for i in range(NUM_HITSTUN_PARTICLES):
+                hitstun_particle_vel = (random.uniform(-2, 2), random.uniform(-2, 2))
+                self.game.particles.append(Particle(self.game, particle_type, self.entity_rect().center, hitstun_particle_vel, frame=0))
+            
             return
 
         # Start timer only first frame of contact with player
@@ -386,13 +409,13 @@ class Player(PhysicsEntity):
     
         # Void out and death warp if player falls below given Y value
         if self.pos[1] > VOID_HEIGHT:
-            self.game.fade_out = True
+            self.game.damage_fade_out = True
 
         # Void out and death warp if player collides with spike tiles
         below_tile = self.game.tilemap.tile_below(self.entity_rect().center)
         if not below_tile == None:
             if below_tile['type'] == 'spikes' and self.collisions['down'] == True:
-                self.game.fade_out = True
+                self.game.damage_fade_out = True
 
         # Update collision and position based on movement
         super().update(tilemap, movement=movement)

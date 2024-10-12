@@ -37,8 +37,8 @@ class Game:
         self.blackout_surf = pygame.Surface(DISPLAY_SIZE)
         self.blackout_surf.fill((0, 0, 0))
         self.blackout_alpha = 0
-        self.fade_in = False
-        self.fade_out = False
+        self.damage_fade_in = False
+        self.damage_fade_out = False
 
         # Load assets
         self.assets = {
@@ -74,6 +74,7 @@ class Game:
             'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
             'collectables/claw_pickup/idle' : Animation(load_images('collectables/claw_pickup/idle')),
             'collectables/wings_pickup/idle' : Animation(load_images('collectables/wings_pickup/idle')),
+            'collectables/saw/idle' : Animation(load_images('collectables/saw/idle'), img_dur=3, loop=True),
         }
 
         # Load audio
@@ -101,6 +102,8 @@ class Game:
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
             'shiny_item' : pygame.mixer.Sound('sfx/shiny_item.wav'),
+            'saw_loop_1' : pygame.mixer.Sound('sfx/saw_loop_1.wav'),
+            'saw_loop_2' : pygame.mixer.Sound('sfx/saw_loop_2.wav'),
         }
 
         # Initialize audio volume
@@ -126,7 +129,10 @@ class Game:
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
         self.sfx['ability_info'].set_volume(0.05)
-        self.sfx['shiny_item'].set_volume(0)
+        self.sfx['shiny_item'].set_volume(0.0)
+        self.sfx['saw_loop_1'].set_volume(0.0)  
+        self.sfx['saw_loop_2'].set_volume(0.0)
+
         
 
         # Player Init
@@ -153,7 +159,7 @@ class Game:
 
         # Entity Init
         self.collectables = []
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
             if spawner['variant'] == 1:
@@ -167,6 +173,9 @@ class Game:
                 self.collectables.append(Collectable(self, spawner['pos'], 'claw_pickup'))
             if spawner['variant'] == 5:
                 self.collectables.append(Collectable(self, spawner['pos'], 'wings_pickup'))
+            if spawner['variant'] == 6:
+                self.collectables.append(Collectable(self, spawner['pos'], 'saw'))
+
 
         # Camera Init
         self.scroll = [0, 0]
@@ -238,7 +247,7 @@ class Game:
                 self.camera_smooth = CAMERA_SMOOTH * 1.75
 
             # Freeze player when fading in or out from death warp
-            if self.fade_out:
+            if self.damage_fade_out:
 
                 # First frame of fade out
                 if self.blackout_alpha > 0 and self.blackout_alpha <= FADE_SPEED :
@@ -252,10 +261,10 @@ class Game:
                 # Black screen
                     self.camera_smooth = 1
                     self.player.death_warp()
-                    self.fade_out = False
-                    self.fade_in = True
+                    self.damage_fade_out = False
+                    self.damage_fade_in = True
 
-            if self.fade_in:
+            if self.damage_fade_in:
 
                 # First frame of fade in
                 if self.blackout_alpha == 255:
@@ -275,7 +284,7 @@ class Game:
                     self.player.can_update = True
                     self.player.air_time = 0
                     self.player.set_action('idle')
-                    self.fade_in = False
+                    self.damage_fade_in = False
 
             # Control Camera
             self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / self.camera_smooth
