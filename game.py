@@ -37,7 +37,7 @@ class Game:
         # Blackout surface for level transition and death effects
         self.blackout_surf = pygame.Surface(SCREEN_SIZE)
         self.blackout_surf.fill((0, 0, 0))
-        self.blackout_alpha = 0
+        self.blackout_alpha = 255
         self.damage_fade_in = False
         self.damage_fade_out = False
 
@@ -253,8 +253,13 @@ class Game:
                     if event.key == pygame.K_SPACE:
                         self.player.jump_release()      # Jump release for variable jump height
 
-            # Draw background
-            self.display.blit(self.assets['background'], (0,0))
+            # Fix movement not being updated 
+            if not self.player_movement[0] and self.player.holding_left:
+                self.player_movement[0] = True
+            if not self.player_movement[1] and self.player.holding_right:
+                self.player_movement[1] = True
+
+
 
             # Adjust camera scroll and increase camera smoothness based on if player is looking vertically
             self.camera_smooth = CAMERA_SMOOTH
@@ -265,11 +270,6 @@ class Game:
                 self.scroll = [self.scroll[0], self.scroll[1] + LOOK_OFFSET]
                 self.camera_smooth = CAMERA_SMOOTH * 1.75
 
-            # Fix movement not being updated 
-            if not self.player_movement[0] and self.player.holding_left:
-                self.player_movement[0] = True
-            if not self.player_movement[1] and self.player.holding_right:
-                self.player_movement[1] = True
 
             # Freeze player when fading in or out from death warp
             if self.damage_fade_out:
@@ -299,20 +299,32 @@ class Game:
                 # Last few frames of fade in
                 if self.blackout_alpha < 70:
                     self.player.set_action('idle') 
+
                 if self.blackout_alpha > 0:
 
                 # Fading in
-                    self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED)
+                    self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED * 1.5)
                     self.player.velocity = [0, 0]
                 else:
 
                 # Full opacity
                     self.camera_smooth = CAMERA_SMOOTH
-                    self.player.can_update = True
                     self.player.can_move = True
                     self.player.air_time = 0
                     self.player.set_action('idle')
                     self.damage_fade_in = False
+
+            # Fade into first scene
+            if self.playing_timer < 10:
+                self.can_move = False
+                self.camera_smooth = 1
+            if self.playing_timer < 25:
+                self.blackout_alpha -= 10
+                self.player.can_move = True
+            
+            
+            # Draw background
+            self.display.blit(self.assets['background'], (0,0))
 
             # Control Camera
             self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / self.camera_smooth
@@ -324,8 +336,10 @@ class Game:
             self.tilemap.render(self.display, offset=render_scroll)
 
             # Update player movement and animation
-            if self.player.can_update:
+            if self.player.can_update and self.player.can_move:
                 self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
+            if self.player.can_update and not self.player.can_move:
+                self.player.update(self.tilemap, (0, 0))
             
             # Render player
             self.player.render(self.display, offset=render_scroll)
@@ -359,9 +373,11 @@ class Game:
             self.screen.blit(score_img_back, (SCREEN_SIZE[0] - score_img.get_width() - 9.5, 12))
             self.screen.blit(score_img, (SCREEN_SIZE[0] - score_img.get_width() - 8, 13))
 
+
             # Render and update blackout surface onto final screen
             self.blackout_surf.set_alpha(self.blackout_alpha)
             self.screen.blit(self.blackout_surf)
+
 
             # End frame
             pygame.display.update()

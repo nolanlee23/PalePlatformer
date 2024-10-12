@@ -484,8 +484,10 @@ class Player(PhysicsEntity):
         self.looking_up = False
         
 
+        if not self.can_move:
+            self.set_action('kneel')
         # Check for wall slide, reduce Y speed if touching wall
-        if (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw:
+        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw:
 
             # Only play grabbing wall sound if not touching wall previously
             if self.wall_slide_timer > AIRTIME_BUFFER:
@@ -598,8 +600,8 @@ class Player(PhysicsEntity):
             if not self.wall_slide_right:         # Off of left wall
                 self.wall_jump_direction = True
             elif self.wall_slide_right:           # Off of right wall
-                self.wall_jump_timer = 0
-            self.wall_jump_direction = False
+                self.wall_jump_direction = False
+            self.wall_jump_timer = 0
             self.velocity[1] = WALL_JUMP_Y
             self.air_time = AIRTIME_BUFFER + 1
             return True
@@ -658,18 +660,6 @@ class Player(PhysicsEntity):
 
             return True
         
-    def death_warp(self):
-        """
-        Teleport player to spawn point during fadeout
-        """
-        self.pos = self.game.player_spawn_pos.copy()
-        self.pos[1] += COLLECTABLE_OFFSETS['respawn'][1]
-        self.velocity[1] = 0
-        self.dash_timer = 0
-        self.gravity = GRAVITY_CONST
-        self.set_action('kneel')
-
-    
     def hitstun_animation(self):
         """
         Hitstun animation immediately after taking damage
@@ -688,4 +678,19 @@ class Player(PhysicsEntity):
         for i in range(NUM_HITSTUN_PARTICLES):
             hitstun_particle_vel = (random.uniform(-5, 5), random.uniform(-5, 5)) * HITSTUN_PARTICLE_VEL
             self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().center, hitstun_particle_vel, frame=0))
+
+
+    def death_warp(self):
+        """
+        Teleport player to spawn point during fadeout
+        """
+        self.can_update = True
+        self.pos = self.game.player_spawn_pos.copy()
+        self.pos[1] += COLLECTABLE_OFFSETS['respawn'][1]
+        self.velocity[1] = 0
+        self.dash_timer = 0
+        self.gravity = GRAVITY_CONST
+        self.set_action('kneel')
+
+    
     
