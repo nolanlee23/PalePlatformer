@@ -60,8 +60,11 @@ class Game:
             'player/hitstun' : Animation(load_images('player/hitstun')),
             'player/kneel' : Animation(load_images('player/kneel')),
             'player/float' : Animation(load_images('player/float')),
-            'particle/dash_particle' : Animation(load_images('particles/cloak_particle'), img_dur=3, loop=False),
+            'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=4, loop=False),
+            'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5, loop=False),
+            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4, loop=False),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
+            'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10, loop=False),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
             'collectables/respawn/idle' : Animation(load_images('collectables/respawn/idle')),
@@ -69,6 +72,8 @@ class Game:
             'collectables/grub/alert' : Animation(load_images('collectables/grub/alert')),
             'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
             'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
+            'collectables/claw_pickup/idle' : Animation(load_images('collectables/claw_pickup/idle')),
+            'collectables/wings_pickup/idle' : Animation(load_images('collectables/wings_pickup/idle')),
         }
 
         # Load audio
@@ -95,6 +100,7 @@ class Game:
             'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
+            'shiny_item' : pygame.mixer.Sound('sfx/shiny_item.wav'),
         }
 
         # Initialize audio volume
@@ -119,7 +125,8 @@ class Game:
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
-        self.sfx['ability_info'].set_volume(0.1)
+        self.sfx['ability_info'].set_volume(0.05)
+        self.sfx['shiny_item'].set_volume(0)
         
 
         # Player Init
@@ -146,7 +153,7 @@ class Game:
 
         # Entity Init
         self.collectables = []
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
             if spawner['variant'] == 1:
@@ -156,6 +163,10 @@ class Game:
                 self.player_spawn_pos = spawner['pos'].copy()
             if spawner['variant'] == 3:
                 self.collectables.append(Collectable(self, spawner['pos'], 'cloak_pickup'))
+            if spawner['variant'] == 4:
+                self.collectables.append(Collectable(self, spawner['pos'], 'claw_pickup'))
+            if spawner['variant'] == 5:
+                self.collectables.append(Collectable(self, spawner['pos'], 'wings_pickup'))
 
         # Camera Init
         self.scroll = [0, 0]
@@ -168,7 +179,7 @@ class Game:
         """
         # Start looping music playback
         pygame.mixer.music.load('sfx/music_crossroads.wav')
-        pygame.mixer.music.set_volume(0.08)
+        pygame.mixer.music.set_volume(0.05)
         pygame.mixer.music.play(-1)
 
          # Runs 60 times per second
@@ -261,7 +272,7 @@ class Game:
 
                 # Full opacity
                     self.camera_smooth = CAMERA_SMOOTH
-                    self.player.can_move = True
+                    self.player.can_update = True
                     self.player.air_time = 0
                     self.player.set_action('idle')
                     self.fade_in = False
@@ -275,13 +286,8 @@ class Game:
             # Render tilemap
             self.tilemap.render(self.display, offset=render_scroll)
 
-            # Update collectables
-            for collectable in self.collectables.copy():
-                collectable.update()
-                collectable.render(self.display, offset=render_scroll)
-
             # Update player movement and animation
-            if self.player.can_move:
+            if self.player.can_update:
                 self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
             
             # Render player
@@ -294,7 +300,10 @@ class Game:
                 if kill:
                     self.particles.remove(particle)
             
-                
+            # Update and render collectables
+            for collectable in self.collectables.copy():
+                collectable.update()
+                collectable.render(self.display, offset=render_scroll)
 
             # Render and update blackout surface
             self.blackout_surf.set_alpha(self.blackout_alpha)

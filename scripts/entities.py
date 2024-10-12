@@ -17,11 +17,15 @@ COLLECTABLE_SIZES = {
     'respawn' : (16, 16),
     'grub' : (30, 30),
     'cloak_pickup' : (16, 16),
+    'claw_pickup' : (18, 18),
+    'wings_pickup' : (22, 14),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
     'grub' : (0, 11),
     'cloak_pickup' : (0, 0),
+    'claw_pickup' : (0, 0),
+    'wings_pickup' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
 ALERT_NOISE_DIST = 35
@@ -42,7 +46,7 @@ DASH_TICK = 14
 DASH_COOLDOWN_TICK = 20
 WALL_SLIDE_VEL = 1.25
 WALL_JUMP_Y = -4.5
-WALL_JUMP_TICK_CUTOFF = 9
+WALL_JUMP_TICK_CUTOFF = 7
 WALL_JUMP_TICK_STALL = 2
 
 # Player animation constants
@@ -199,43 +203,51 @@ class Collectable(PhysicsEntity):
         if self.dist_to_player >= ALERT_NOISE_DIST:
             self.alerted = False
 
+        # Flash circle particle for pickup items
+        if self.type[-6:] == 'pickup':
 
-            
+            # Every second
+            if self.idle_noise_timer % TICK_RATE * 2 == 0:
+                self.game.particles.append(Particle(self.game, 'circle_particle', self.rect.center, scale=2, opacity= 255 / 2, fade_out=2))
         
 
 
         # Play time based sound effects
         if self.type == 'collectables/grub':
 
-            # Sad grub noises if within distance and after random interval of seconds
-            if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.collect_timer == 0 and self.idle_noise_timer > random.randint(5, 10) * TICK_RATE:
-                rand = random.randint(1, 2)
-                rand_chance = random.randint(1, 10)
-                if rand_chance == 1:
-                    self.idle_noise_timer = 0
-                    self.game.sfx['grub_sad_idle_' + str(rand)].set_volume((GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST))
-                    self.game.sfx['grub_sad_idle_' + str(rand)].play()
+            # Before collection
+            if self.collect_timer == 0:
+
+                # Sad grub noises if within distance and after random interval of seconds
+                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(5, 10) * TICK_RATE:
+                    rand = random.randint(1, 2)
+                    rand_chance = random.randint(1, 10)
+                    if rand_chance == 1:
+                        self.idle_noise_timer = 0
+                        self.game.sfx['grub_sad_idle_' + str(rand)].set_volume((GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2))
+                        self.game.sfx['grub_sad_idle_' + str(rand)].play()
 
 
-            # Update alert status when player is very close
-            if self.dist_to_player < ALERT_NOISE_DIST and self.collect_timer == 0:
+                # Update alert status when player is very close
+                if self.dist_to_player < ALERT_NOISE_DIST:
 
-                # only play alert sound if havent played in ALERT_COOLDOWN seconds
-                if self.alert_noise_timer > TICK_RATE * ALERT_COOLDOWN and not self.alerted:
-                    
-                    self.alert_noise_timer = 0
-                    self.game.sfx['grub_alert'].play()
-                    self.game.sfx['grub_sad_idle_1'].stop()
-                    self.game.sfx['grub_sad_idle_2'].stop()
+                    # only play alert sound if havent played in ALERT_COOLDOWN seconds
+                    if self.alert_noise_timer > TICK_RATE * ALERT_COOLDOWN and not self.alerted:
+                        
+                        self.alert_noise_timer = 0
+                        self.game.sfx['grub_alert'].play()
+                        self.game.sfx['grub_sad_idle_1'].stop()
+                        self.game.sfx['grub_sad_idle_2'].stop()
 
-                self.alerted = True
+                    self.alerted = True
 
-            # Set action based on how long ago grub was alerted
-            if self.alert_noise_timer < TICK_RATE * ALERT_COOLDOWN and self.collect_timer == 0:
-                self.set_action('alert')
-            elif self.collect_timer == 0:
-                self.set_action('idle')
+                # Set action based on how long ago grub was alerted
+                if self.alert_noise_timer < TICK_RATE * ALERT_COOLDOWN or self.alerted:
+                    self.set_action('alert')
+                else:
+                    self.set_action('idle')
 
+            # After collection
 
             # Glass break and fades out (and stop sad noises)
             if self.collect_timer == 2:
@@ -255,7 +267,7 @@ class Collectable(PhysicsEntity):
         
     def collect(self):
         """
-        Events occuring after player collides with collectable
+        Events occuring immediatley after player collides with collectable
         """
         if self.type == 'collectables/respawn':
             self.game.player_spawn_pos = list(self.pos)
@@ -263,16 +275,30 @@ class Collectable(PhysicsEntity):
         if self.type == 'collectables/grub':
             self.set_action('collect')
 
-        if self.type == 'collectables/cloak_pickup':
-            self.game.player.has_cloak = True
+        # If item is a pickup item
+        if self.type[-6:] == 'pickup':
+
+            if self.type == 'collectables/cloak_pickup':
+                self.game.player.has_cloak = True
+                particle_type = 'cloak_particle'
+
+        
+            if self.type == 'collectables/claw_pickup':
+                self.game.player.has_claw = True
+                particle_type ='dash_particle'
+
+            if self.type == 'collectables/wings_pickup':
+                self.game.player.has_wings = True
+                particle_type = 'long_slide_particle'
+
+            # Boom sound effect and particle burst
             self.game.sfx['ability_pickup'].play()
             self.game.sfx['ability_info'].play()
             self.game.collectables.remove(self)
             for i in range(NUM_HITSTUN_PARTICLES * 2):
                 hitstun_particle_vel = (random.uniform(-2, 2), random.uniform(-2, 2))
-                self.game.particles.append(Particle(self.game, 'dash_particle', self.game.player.entity_rect().center, hitstun_particle_vel, frame=0))
+                self.game.particles.append(Particle(self.game, particle_type, self.game.player.entity_rect().center, hitstun_particle_vel, frame=0))
             return
-
 
         # Start timer only first frame of contact with player
         if self.collect_timer < 1:
@@ -293,7 +319,7 @@ class Player(PhysicsEntity):
 
         # Control variables
         self.intangibility_timer = 0
-        self.can_move = True
+        self.can_update = True
 
         # Jump and wall jump variables
         self.has_wings = False
@@ -388,7 +414,7 @@ class Player(PhysicsEntity):
                 self.dashes = NUM_AIR_DASHES
 
         # Reset upon grabbing walls
-        if self.collisions['right'] or self.collisions['left']:
+        if self.collisions['right'] or self.collisions['left'] and self.has_claw:
             self.jumps = NUM_AIR_JUMPS
             self.dashes = NUM_AIR_DASHES
 
@@ -444,7 +470,7 @@ class Player(PhysicsEntity):
             self.anim_offset = DASH_ANIM_OFFSET
         # Dash particles 
             dash_trail_pos = (self.entity_rect().centerx, self.entity_rect().centery + random.randint(-1, 1) / DASH_TRAIL_VARIANCE)
-            self.game.particles.append(Particle(self.game, 'dash_particle', dash_trail_pos, velocity=(0,0), frame=0))
+            self.game.particles.append(Particle(self.game, 'cloak_particle', dash_trail_pos, velocity=(0,0), frame=0))
 
         # Buffer for small amounts of airtime flashing animation
         elif self.air_time > AIRTIME_BUFFER:
@@ -466,7 +492,7 @@ class Player(PhysicsEntity):
 
         # Determine ground material while walking for running sounds
             below_tile = self.game.tilemap.tile_below(self.pos)
-            if not below_tile == None and self.running_time % 180 == 1:
+            if not below_tile == None and self.running_time % 120 == 5:
                 if below_tile['type'] == 'grass':
                     self.game.sfx['run_grass'].play()
                 if below_tile['type'] == 'stone':
@@ -494,7 +520,7 @@ class Player(PhysicsEntity):
 
 
         # Ensure no lingering sound effects
-        if self.wall_slide == False and self.has_claw:
+        if not self.wall_slide and self.has_claw:
             self.game.sfx['wall_slide'].stop()
             self.sliding_time = 0
         if self.air_time > AIRTIME_BUFFER or self.idle_timer > AIRTIME_BUFFER:
@@ -531,11 +557,11 @@ class Player(PhysicsEntity):
                     self.jumps = max(0, self.jumps - 1)
                     self.velocity[1] = AIR_JUMP_Y_VEL
                     self.game.sfx['wings'].play()
-                # Midair wing jump particle
-                    self.game.particles.append(Particle(self.game, 'wings_particle', self.entity_rect().center, velocity=(0, 0), frame=0, flip=self.flip, follow_player=True))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().center, velocity=(0, 1), frame=0))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midleft, velocity=(-1, 0.8), frame=0))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midright, velocity=(1, 0.8), frame=0))
+                # Midair wing jump particle: 1 for wing animation, 3 short bursts in each downward direction
+                    self.game.particles.append(Particle(self.game, 'wings_particle', self.entity_rect().center, velocity=(0, 0), flip=self.flip, follow_player=True))
+                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().center, velocity=(0, 0.8)))
+                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midleft, velocity=(-1, 0.6)))
+                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midright, velocity=(1, 0.6)))
             else:                                               # Grounded jump
                 self.velocity[1] = JUMP_Y_VEL
                 self.game.sfx['jump'].play()
@@ -569,9 +595,9 @@ class Player(PhysicsEntity):
                 dash_particle_vel = (-DASH_PARTICLE_VEL, 0)
             self.dash_cooldown_timer = -DASH_TICK
 
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
 
             self.game.sfx['cloak'].play()
 
@@ -599,9 +625,9 @@ class Player(PhysicsEntity):
         self.game.sfx['run_grass'].stop()
         self.game.sfx['run_stone'].stop()
         self.game.sfx['wall_slide'].stop()
-        self.can_move = False
+        self.can_update = False
 
         for i in range(NUM_HITSTUN_PARTICLES):
             hitstun_particle_vel = (random.uniform(-5, 5), random.uniform(-5, 5)) * HITSTUN_PARTICLE_VEL
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, hitstun_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().center, hitstun_particle_vel, frame=0))
     
