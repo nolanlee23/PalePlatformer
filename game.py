@@ -70,6 +70,7 @@ class Game:
             'player/kneel' : Animation(load_images('player/kneel')),
             'player/float' : Animation(load_images('player/float')),
             'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=2),
+            'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=8),
             'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
             'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
@@ -83,6 +84,7 @@ class Game:
             'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
             'collectables/claw_pickup/idle' : Animation(load_images('collectables/claw_pickup/idle')),
             'collectables/wings_pickup/idle' : Animation(load_images('collectables/wings_pickup/idle')),
+            'collectables/dash_pickup/idle' : Animation(load_images('collectables/dash_pickup/idle')),
             'collectables/saw/idle' : Animation(load_images('collectables/saw/idle'), img_dur=3, loop=True),
             'collectables/gate/idle' : Animation(load_images('collectables/gate/idle')),
             'collectables/gate/drop' : Animation(load_images('collectables/gate/drop'), img_dur=6,),
@@ -197,6 +199,8 @@ class Game:
                 self.collectables.append(Collectable(self, spawner['pos'], 'gate', x_collisions=True))
             if spawner['variant'] == 8:
                 self.collectables.append(Collectable(self, spawner['pos'], 'lever'))
+            if spawner['variant'] == 9:
+                self.collectables.append(Collectable(self, spawner['pos'], 'dash_pickup'))
 
 
         # Hud Init
@@ -250,6 +254,7 @@ class Game:
                     if event.key == pygame.K_LSHIFT:    # SHIFT is dash
                         self.player.dash()
                     if event.key == pygame.K_v:         # V is dev unlock
+                        self.player.has_dash = True
                         self.player.has_cloak = True
                         self.player.has_claw = True
                         self.player.has_wings = True

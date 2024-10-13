@@ -23,16 +23,18 @@ COLLECTABLE_SIZES = {
     'saw' : (20, 20),
     'gate' : (8, 32),
     'lever' : (16, 14),
+    'dash_pickup' : (16, 16),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
     'grub' : (0, 11),
-    'cloak_pickup' : (0, 0),
-    'claw_pickup' : (0, 0),
-    'wings_pickup' : (0, 0),
     'saw' : (20, 5),
     'gate' : (0, 0),
     'lever' : (0, 0),
+    'dash_pickup' : (0, 0),
+    'claw_pickup' : (0, 0),
+    'wings_pickup' : (0, 0),
+    'cloak_pickup' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
 ALERT_NOISE_DIST = 35
@@ -374,21 +376,25 @@ class Collectable(PhysicsEntity):
         # If item is an ability pickup item
         if self.type[-6:] == 'pickup':
 
-            if self.type == 'collectables/cloak_pickup':
-                self.game.player.has_cloak = True
-                particle_type = 'cloak_particle'
+            if self.type == 'collectables/dash_pickup':
+                self.game.player.has_dash = True
+                particle_type = 'long_dash_particle'
                 self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(4, 4)))
-
         
             if self.type == 'collectables/claw_pickup':
                 self.game.player.has_claw = True
-                particle_type ='dash_particle'
+                particle_type ='long_dash_particle'
                 self.game.hud.append(HudElement(self.game, self.game.assets['guide_climb'] ,(4, 4)))
 
             if self.type == 'collectables/wings_pickup':
                 self.game.player.has_wings = True
                 particle_type = 'long_slide_particle'
                 self.game.hud.append(HudElement(self.game, self.game.assets['guide_fly'] ,(4, 4)))
+
+            if self.type == 'collectables/cloak_pickup':
+                self.game.player.has_cloak = True
+                particle_type = 'cloak_particle'
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(4, 4)))
 
             # Boom sound effect and particle burst
             self.game.sfx['shiny_item'].stop()
@@ -447,9 +453,11 @@ class Player(PhysicsEntity):
 
 
         # Control dash variables
+        self.has_dash = False
         self.has_cloak = False
         self.dashes = NUM_AIR_DASHES
         self.dash_timer = 0
+        self.cloak_timer = 0
         self.dash_cooldown_timer = 0
 
         # Camera control for player holding up or down while idle for a time
@@ -541,6 +549,8 @@ class Player(PhysicsEntity):
         self.anim_offset = PLAYER_ANIM_OFFSET
         if self.air_jumping > 0:
             self.air_jumping += 1
+        if self.cloak_timer > 0:
+            self.cloak_timer += 1
 
         # Reset mobility upon touching ground
         if self.collisions['down']:
@@ -591,7 +601,8 @@ class Player(PhysicsEntity):
 
         if not self.can_move:
             self.set_action('kneel')
-        # Check for wall slide, reduce Y ďpeed if touching wall
+
+        # WALL SLIDE, reduce Y ďpeed if touching wall
         elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw and not self.entity_collision:
 
             # Only play grabbing wall sound if not touching wall previously
@@ -613,7 +624,7 @@ class Player(PhysicsEntity):
             self.dash_timer /= 2
             self.velocity[1] = min(self.velocity[1], WALL_SLIDE_VEL)
 
-            self.set_action('wall_slide')   # Wall sliding
+            self.set_action('wall_slide') 
 
             # Wall slide animation facing right, opposite of wall
             player_rect = self.entity_rect()
@@ -629,28 +640,28 @@ class Player(PhysicsEntity):
             slide_particle_vel = (0, random.randint(1, 4) / 2)
             self.game.particles.append(Particle(self.game, 'slide_particle', slide_particle_pos, velocity=slide_particle_vel, frame=slide_particle_start_f))
 
-        # Dash animation 
+        # DASH animation 
         elif abs(self.dash_timer) > 0:
-            self.set_action('dash')         # Dashing
+            self.set_action(self.dash_type)     
             self.anim_offset = DASH_ANIM_OFFSET
             # Dash particles 
             if not self.collisions['left'] and not self.collisions['right']:
                 dash_trail_pos = (self.entity_rect().centerx, self.entity_rect().centery + random.randint(-1, 1) / DASH_TRAIL_VARIANCE)
-                self.game.particles.append(Particle(self.game, 'dash_particle', dash_trail_pos, velocity=(0,0), frame=0))
+                self.game.particles.append(Particle(self.game, self.dash_type + '_particle', dash_trail_pos, velocity=(0,0), frame=0))
 
-        # Buffer for small amounts of airtime flashing animation
+        # AIRTIME, buffer for small amounts of airtime flashing animation
         elif self.air_time > AIRTIME_BUFFER:
             if self.velocity[1] < 0:
-                self.set_action('jump')     # Rising
+                self.set_action('jump') 
                 # Drifting random wing particles while rising
                 if self.air_jumping > 0 and self.air_jumping < 16:
                     self.game.particles.append(Particle(self.game, 'long_slide_particle', (self.entity_rect().centerx + random.randint(-10, 10), self.entity_rect().centery), velocity=(random.uniform(-0.1, 0.1), random.uniform(0, 0.2))))
             else:
-                self.set_action('fall')     # Falling
+                self.set_action('fall')  
 
         # Run if moving and not moving into a wall
         elif movement[0] != 0 and not self.collisions['left'] and not self.collisions['right']:
-            self.set_action('run')          # Running
+            self.set_action('run') 
             idling = False
             self.running_time += 1
 
@@ -667,21 +678,23 @@ class Player(PhysicsEntity):
                     self.game.sfx['run_grass'].play()
                 if below_tile['type'] == 'stone':
                     self.game.sfx['run_stone'].play()
-                    
+        # Looking up 
         elif self.holding_up:
             self.looking_up = True
             idling = True
-            self.set_action('look_up')     # Looking up
-
+            self.set_action('look_up')
+        # Looking down 
         elif self.holding_down:
             self.looking_down = True
             idling = True
             self.set_action('look_down')    # Looking down
-
+        # Idling
         else:
             idling = True
             self.set_action('idle')         # Idle
             
+
+
         # Add delay in camera movement to avoid rapid changes
         if idling:
             self.idle_timer += 1
@@ -714,7 +727,7 @@ class Player(PhysicsEntity):
             self.game.sfx['falling'].play()
         if self.falling_time >= TICK_RATE and self.velocity[1] > 0:
             self.game.sfx['falling'].set_volume(min(FALLING_VOLUME, self.game.sfx['falling'].get_volume() + 0.01))
-
+            
 
         # Ensure no lingering sound effects
         if not self.wall_slide and self.has_claw:
@@ -797,7 +810,7 @@ class Player(PhysicsEntity):
         Dash by starting timer and taking over player movement until timer reaches zero
         Return TRUE if sucessful dash
         """
-        if self.has_cloak and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and (self.air_time > AIRTIME_BUFFER or (not self.collisions['right'] and not self.collisions['left'])):
+        if self.has_dash and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and (self.air_time > AIRTIME_BUFFER or (not self.collisions['right'] and not self.collisions['left'])):
         # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
         # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
@@ -811,11 +824,16 @@ class Player(PhysicsEntity):
             self.sliding_time = 0
             self.dash_cooldown_timer = -DASH_TICK
 
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
+            if self.has_cloak:
+                self.dash_type = 'cloak'
+            else:
+                self.dash_type = 'dash'
 
-            self.game.sfx['dash'].play()
+            self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
+
+            self.game.sfx[self.dash_type].play()
 
             return True
         
