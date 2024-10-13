@@ -4,7 +4,7 @@ import pygame
 
 class HudElement:
 
-    def __init__(self, game, image, pos, fixed=False, onscreen_tick=200, fadein_tick=30, fadeout_tick=90, opacity=0, scale=1.0,):
+    def __init__(self, game, image, pos, fixed=False, onscreen_tick=200, fadein_tick=30, fadeout_tick=90, opacity=0, scale=2.0,):
         
         self.game = game
         self.image = pygame.transform.scale(image, (int(image.get_width() * scale), int(image.get_height() * scale)))

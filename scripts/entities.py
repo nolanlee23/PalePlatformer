@@ -20,24 +20,26 @@ COLLECTABLE_SIZES = {
     'cloak_pickup' : (16, 16),
     'claw_pickup' : (18, 18),
     'wings_pickup' : (22, 14),
-    'saw' : (20, 20),
+    'saw' : (30, 30),
     'gate' : (8, 32),
     'lever' : (16, 14),
     'dash_pickup' : (16, 16),
+    'shade_gate' : (16, 32),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
     'grub' : (0, 11),
-    'saw' : (20, 5),
+    'saw' : (0, 0),
     'gate' : (0, 0),
     'lever' : (0, 0),
     'dash_pickup' : (0, 0),
     'claw_pickup' : (0, 0),
     'wings_pickup' : (0, 0),
     'cloak_pickup' : (0, 0),
+    'shade_gate' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
-ALERT_NOISE_DIST = 35
+ALERT_NOISE_DIST = 45
 ALERT_COOLDOWN = 3
 SHINY_NOISE_DIST = 150
 SAW_NOISE_DIST = 80
@@ -220,8 +222,8 @@ class Collectable(PhysicsEntity):
         # Update distance to player
         self.rect = self.entity_rect()
         self.player_rect = self.game.player.entity_rect()
-        self.x_dist = self.rect.centerx - self.player_rect.x
-        self.y_dist = self.rect.centery - self.player_rect.y
+        self.x_dist = self.rect.centerx - self.player_rect.centerx
+        self.y_dist = self.rect.centery - self.player_rect.centery
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
         # Collect when in contact
@@ -229,7 +231,7 @@ class Collectable(PhysicsEntity):
             self.collect()
 
         # Saw has circular appearance, use distance from center for collision detection
-        if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] + 1:
+        if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] - 10:
             self.game.damage_fade_out = True
 
         # Update alerted status for grubs
@@ -251,8 +253,21 @@ class Collectable(PhysicsEntity):
         # Play saw blade sound effect
         if self.type == 'collectables/saw':
             self.game.sfx['saw_loop'].set_volume(min(0.2, (SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST)))
+            if self.dist_to_player < SAW_NOISE_DIST * 1.2:
+                print(str(self.dist_to_player))
             if self.idle_noise_timer % 100 == 1 and self.dist_to_player < SAW_NOISE_DIST * 1.2:
                 self.game.sfx['saw_loop'].play()
+
+        # Spawn floating void particles
+        if self.type == 'collectables/shade_gate':
+            if self.game.player.cloak_timer > 0 and self.game.player.cloak_timer < DASH_TICK:
+                self.x_collisions = False
+            else:
+                self.x_collisions = True
+            
+            if self.dist_to_player < 250:
+                self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=2))
+
 
         
         if self.type == 'collectables/lever': 
@@ -276,8 +291,8 @@ class Collectable(PhysicsEntity):
                 closest_gate = gate_list[0]
                 for gate in gate_list:
                     # New gate distance
-                    x_dist = self.rect.centerx - gate.rect.x
-                    y_dist = self.rect.centery - gate.rect.y
+                    x_dist = self.rect.centerx - gate.rect.centerx
+                    y_dist = self.rect.centery - gate.rect.centery
                     dist_to_gate = math.sqrt(x_dist**2 + y_dist**2)
 
                     closest_x_dist = self.rect.centerx - closest_gate.rect.centerx
@@ -306,9 +321,10 @@ class Collectable(PhysicsEntity):
                         self.game.sfx['grub_sad_idle_' + str(rand)].set_volume((GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2))
                         self.game.sfx['grub_sad_idle_' + str(rand)].play()
 
+                    
 
                 # Update alert status when player is very close
-                if self.dist_to_player < ALERT_NOISE_DIST:
+                if self.dist_to_player < ALERT_NOISE_DIST and abs(self.y_dist) < ALERT_NOISE_DIST / 100:
 
                     # only play alert sound if havent played in ALERT_COOLDOWN seconds
                     if self.alert_noise_timer > TICK_RATE * ALERT_COOLDOWN and not self.alerted:
@@ -334,6 +350,10 @@ class Collectable(PhysicsEntity):
                 self.game.sfx['grub_sad_idle_2'].stop()
                 self.game.sfx['grub_break'].play()
                 self.game.sfx['grub_break'].fadeout(1200)
+
+                for i in range(30):
+                        self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().center, velocity=(random.uniform(-3, 3), random.uniform(-2, 3))))
+            
 
             # Happy grub noises
             if self.collect_timer == 40:
@@ -393,13 +413,15 @@ class Collectable(PhysicsEntity):
 
             if self.type == 'collectables/cloak_pickup':
                 self.game.player.has_cloak = True
-                particle_type = 'cloak_particle'
+                particle_type = 'long_cloak_particle'
                 self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(4, 4)))
+                self.game.sfx['dark_spell_get'].play()
+                
 
             # Boom sound effect and particle burst
             self.game.sfx['shiny_item'].stop()
-            self.game.sfx['ability_pickup'].play()
             self.game.sfx['ability_info'].play()
+            self.game.sfx['ability_pickup'].play()
             self.game.collectables.remove(self)
             for i in range(NUM_HITSTUN_PARTICLES):
                 hitstun_particle_vel = (random.uniform(-2, 2), random.uniform(-2, 2))
@@ -727,7 +749,7 @@ class Player(PhysicsEntity):
             self.game.sfx['falling'].play()
         if self.falling_time >= TICK_RATE and self.velocity[1] > 0:
             self.game.sfx['falling'].set_volume(min(FALLING_VOLUME, self.game.sfx['falling'].get_volume() + 0.01))
-            
+
 
         # Ensure no lingering sound effects
         if not self.wall_slide and self.has_claw:
@@ -811,9 +833,10 @@ class Player(PhysicsEntity):
         Return TRUE if sucessful dash
         """
         if self.has_dash and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and (self.air_time > AIRTIME_BUFFER or (not self.collisions['right'] and not self.collisions['left'])):
-        # Decrement dashes counter
+            # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
-        # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
+
+            # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
             if (self.sliding_time > AIRTIME_BUFFER + 2 and self.wall_slide_right) or (self.sliding_time <= AIRTIME_BUFFER + 2 and self.flip):
                 self.dash_timer = -DASH_TICK
                 dash_particle_vel = (DASH_PARTICLE_VEL, 0)
@@ -821,14 +844,18 @@ class Player(PhysicsEntity):
                 self.dash_timer = DASH_TICK
                 dash_particle_vel = (-DASH_PARTICLE_VEL, 0)
             
+            # Cancel wall slide
             self.sliding_time = 0
             self.dash_cooldown_timer = -DASH_TICK
 
+            # Cloak or dash based on cooldown timer
             if self.has_cloak:
                 self.dash_type = 'cloak'
+                self.cloak_timer = 1
             else:
                 self.dash_type = 'dash'
 
+            # Burst of 3 particles head to toe in opposite direction of dash
             self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
             self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
             self.game.particles.append(Particle(self.game, self.dash_type + '_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))

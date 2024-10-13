@@ -17,7 +17,7 @@ PLAYER_SIZE = (8, 14)
 CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
 LOOK_THRESHOLD = 20
-FADE_SPEED = 6
+FADE_SPEED = 8
 
 class Game:
 
@@ -73,6 +73,7 @@ class Game:
             'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=8),
             'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
             'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4),
+            'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=8),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
             'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=7),
@@ -90,6 +91,7 @@ class Game:
             'collectables/gate/drop' : Animation(load_images('collectables/gate/drop'), img_dur=6,),
             'collectables/lever/idle' : Animation(load_images('collectables/lever/idle')),
             'collectables/lever/collect' : Animation(load_images('collectables/lever/collect'), img_dur=6),
+            'collectables/shade_gate/idle' : Animation(load_images('collectables/shade_gate/idle'), img_dur=5, loop=True),
         }
 
         # Load audio
@@ -117,6 +119,7 @@ class Game:
             'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
+            'dark_spell_get' : pygame.mixer.Sound('sfx/dark_spell_get.wav'),
             'shiny_item' : pygame.mixer.Sound('sfx/shiny_item.wav'),
             'saw_loop' : pygame.mixer.Sound('sfx/saw_loop.wav'),
             'gate' : pygame.mixer.Sound('sfx/gate.wav'),
@@ -146,7 +149,8 @@ class Game:
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
-        self.sfx['ability_info'].set_volume(0.10)
+        self.sfx['ability_info'].set_volume(0.1)
+        self.sfx['dark_spell_get'].set_volume(0.4)
         self.sfx['shiny_item'].set_volume(0.0)
         self.sfx['saw_loop'].set_volume(0.0)
         self.sfx['gate'].set_volume(0.15)
@@ -201,13 +205,15 @@ class Game:
                 self.collectables.append(Collectable(self, spawner['pos'], 'lever'))
             if spawner['variant'] == 9:
                 self.collectables.append(Collectable(self, spawner['pos'], 'dash_pickup'))
+            if spawner['variant'] == 10:
+                self.collectables.append(Collectable(self, spawner['pos'], 'shade_gate', x_collisions=True))
 
 
         # Hud Init
         self.hud = []
         self.hud.append(HudElement(self, self.assets['guide_move'] ,(4, 4)))
-        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(32, 4)))
-        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180))
+        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(64, 4)))
+        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180, scale=1.0))
         self.score_text = pygame.font.Font('freesansbold.ttf', 30)
         self.score_text_back = pygame.font.Font('freesansbold.ttf', 31)
 
@@ -239,31 +245,33 @@ class Game:
 
                 # Keystroke down
                 if event.type == pygame.KEYDOWN and self.player.can_move:
-                    if event.key == pygame.K_a:         # A is left
+                    if event.key == pygame.K_a or event.key == pygame.K_LEFT:         # A is left
                         self.player_movement[0] = True
                         self.player.holding_left = True
-                    if event.key == pygame.K_d:         # D is right
+                    if event.key == pygame.K_d or event.key == pygame.K_RIGHT:         # D is right
                         self.player_movement[1] = True
                         self.player.holding_right = True
-                    if event.key == pygame.K_w:         # W is up
+                    if event.key == pygame.K_w or event.key == pygame.K_UP:         # W is up
                         self.player.holding_up = True
-                    if event.key == pygame.K_s:         # S is down
+                    if event.key == pygame.K_s or event.key == pygame.K_DOWN:         # S is down
                         self.player.holding_down = True
                     if event.key == pygame.K_SPACE:     # SPACE is jump
                         self.player.jump()
-                    if event.key == pygame.K_LSHIFT:    # SHIFT is dash
+                    if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:    # SHIFT is dash
                         self.player.dash()
                     if event.key == pygame.K_v:         # V is dev unlock
                         self.player.has_dash = True
                         self.player.has_cloak = True
                         self.player.has_claw = True
                         self.player.has_wings = True
+                    if event.key == pygame.K_MINUS:         # Minus is anit-softlock
+                        self.damage_fade_out = True
 
                 # Keystroke up
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_a:
                         self.player_movement[0] = False
-                        self.player.holding_left = False
+                        self.player.holding_left = False 
                     if event.key == pygame.K_d:
                         self.player_movement[1] = False
                         self.player.holding_right = False
@@ -356,19 +364,21 @@ class Game:
             # Render tilemap
             self.tilemap.render(self.display, offset=render_scroll)
 
-            # Update and render collectables
-            for collectable in self.collectables.copy():
-                collectable.update()
-                collectable.render(self.display, offset=render_scroll)
 
             # Update player movement and animation
             if self.player.can_update and self.player.can_move:
                 self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
             if self.player.can_update and not self.player.can_move:
                 self.player.update(self.tilemap, (0, 0))
+
+            # Update and render collectables
+            for collectable in self.collectables.copy():
+                collectable.update()
+                collectable.render(self.display, offset=render_scroll)
             
             # Render player
             self.player.render(self.display, offset=render_scroll)
+            
 
             # Update and render particles
             for particle in self.particles.copy():
