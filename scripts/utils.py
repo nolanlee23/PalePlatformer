@@ -32,7 +32,7 @@ class Animation:
     """
     Control animation assets and frame data
     """
-    def __init__(self, images, img_dur=5, loop=True):
+    def __init__(self, images, img_dur=5, loop=False):
         self.images = list(images)
         self.img_duration = img_dur
         self.loop = loop

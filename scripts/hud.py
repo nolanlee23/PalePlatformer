@@ -4,7 +4,7 @@ import pygame
 
 class HudElement:
 
-    def __init__(self, game, image, pos, scale=1.0, fixed=False, onscreen_tick=200, fadein_tick=30, fadeout_tick=90, opacity=0):
+    def __init__(self, game, image, pos, fixed=False, onscreen_tick=200, fadein_tick=30, fadeout_tick=90, opacity=0, scale=1.0,):
         
         self.game = game
         self.image = pygame.transform.scale(image, (int(image.get_width() * scale), int(image.get_height() * scale)))
@@ -20,9 +20,11 @@ class HudElement:
 
         self.alive_tick += 1
 
+        # Fade in
         if self.alive_tick < self.fadein_tick and not self.fixed:
             self.opacity = min(254, self.opacity + 255 // self.fadein_tick)
 
+        # Fade out
         if self.alive_tick > self.onscreen_tick and not self.fixed:
             self.opacity = max(0, self.opacity - 255 // self.fadeout_tick)
 

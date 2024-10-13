@@ -13,7 +13,7 @@ DISPLAY_SIZE = (320, 240)
 RENDER_SCALE = 4.0
 TICK_RATE = 60
 PLAYER_START_POS = (0, 0)
-PLAYER_SIZE = (10, 14)
+PLAYER_SIZE = (8, 14)
 CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
 LOOK_THRESHOLD = 20
@@ -58,31 +58,36 @@ class Game:
             'spawners' : load_images('tiles/spawners'),
             'spikes' : load_images('tiles/spikes'),
             'player/idle' : Animation(load_images('player/idle')),
-            'player/look_up' : Animation(load_images('player/look_up'), img_dur=4, loop=False),
-            'player/look_down' : Animation(load_images('player/look_down'), img_dur=4, loop=False),
-            'player/run' : Animation(load_images('player/run'), img_dur=5),
+            'player/look_up' : Animation(load_images('player/look_up'), img_dur=4),
+            'player/look_down' : Animation(load_images('player/look_down'), img_dur=4),
+            'player/run' : Animation(load_images('player/run'), img_dur=5, loop=True),
             'player/jump' : Animation(load_images('player/jump')),
             'player/fall' : Animation(load_images('player/fall')),
             'player/wall_slide' : Animation(load_images('player/wall_slide')),
-            'player/dash' : Animation(load_images('player/cloak'), img_dur=3, loop=False),
+            'player/dash' : Animation(load_images('player/dash'), img_dur=4),
+            'player/cloak' : Animation(load_images('player/cloak'), img_dur=4),
             'player/hitstun' : Animation(load_images('player/hitstun')),
             'player/kneel' : Animation(load_images('player/kneel')),
             'player/float' : Animation(load_images('player/float')),
-            'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=4, loop=False),
-            'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5, loop=False),
-            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4, loop=False),
-            'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2, loop=False),
-            'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10, loop=False),
-            'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=5, loop=False),
-            'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3, loop=False),
+            'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=2),
+            'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
+            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4),
+            'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
+            'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10),
+            'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=7),
+            'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3),
             'collectables/respawn/idle' : Animation(load_images('collectables/respawn/idle')),
             'collectables/grub/idle' : Animation(load_images('collectables/grub/idle')),
             'collectables/grub/alert' : Animation(load_images('collectables/grub/alert')),
-            'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8, loop=False),
+            'collectables/grub/collect' : Animation(load_images('collectables/grub/collect'), img_dur=8),
             'collectables/cloak_pickup/idle' : Animation(load_images('collectables/cloak_pickup/idle')),
             'collectables/claw_pickup/idle' : Animation(load_images('collectables/claw_pickup/idle')),
             'collectables/wings_pickup/idle' : Animation(load_images('collectables/wings_pickup/idle')),
             'collectables/saw/idle' : Animation(load_images('collectables/saw/idle'), img_dur=3, loop=True),
+            'collectables/gate/idle' : Animation(load_images('collectables/gate/idle')),
+            'collectables/gate/drop' : Animation(load_images('collectables/gate/drop'), img_dur=6,),
+            'collectables/lever/idle' : Animation(load_images('collectables/lever/idle')),
+            'collectables/lever/collect' : Animation(load_images('collectables/lever/collect'), img_dur=6),
         }
 
         # Load audio
@@ -91,6 +96,7 @@ class Game:
             'run_stone' : pygame.mixer.Sound('sfx/run_stone.wav'),
             'jump' : pygame.mixer.Sound('sfx/jump.wav'),
             'land' : pygame.mixer.Sound('sfx/land.wav'),
+            'land_hard' : pygame.mixer.Sound('sfx/land_hard.wav'),
             'falling' : pygame.mixer.Sound('sfx/falling.wav'),
             'wings' : pygame.mixer.Sound('sfx/wings.wav'),
             'dash' : pygame.mixer.Sound('sfx/dash.wav'),
@@ -111,20 +117,23 @@ class Game:
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
             'shiny_item' : pygame.mixer.Sound('sfx/shiny_item.wav'),
             'saw_loop' : pygame.mixer.Sound('sfx/saw_loop.wav'),
+            'gate' : pygame.mixer.Sound('sfx/gate.wav'),
+            'lever' : pygame.mixer.Sound('sfx/lever.wav'),
         }
 
         # Initialize audio volume
         self.sfx['run_grass'].set_volume(0.2)
         self.sfx['run_stone'].set_volume(0.2)
-        self.sfx['jump'].set_volume(0.15)
-        self.sfx['land'].set_volume(0.08)
+        self.sfx['jump'].set_volume(0.10)
+        self.sfx['land'].set_volume(0.06)
+        self.sfx['land_hard'].set_volume(0.10)
         self.sfx['falling'].set_volume(0.2)
         self.sfx['wings'].set_volume(0.2)
         self.sfx['dash'].set_volume(0.14)
-        self.sfx['cloak'].set_volume(0.1)
+        self.sfx['cloak'].set_volume(0.08)
         self.sfx['hitstun'].set_volume(0.2)
-        self.sfx['wall_jump'].set_volume(0.15 )
-        self.sfx['wall_slide'].set_volume(0.25)
+        self.sfx['wall_jump'].set_volume(0.12 )
+        self.sfx['wall_slide'].set_volume(0.12)
         self.sfx['mantis_claw'].set_volume(0.15)
         self.sfx['grub_free_1'].set_volume(0.2)
         self.sfx['grub_free_2'].set_volume(0.2)
@@ -135,9 +144,11 @@ class Game:
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['ability_pickup'].set_volume(0.3)
-        self.sfx['ability_info'].set_volume(0.05)
+        self.sfx['ability_info'].set_volume(0.10)
         self.sfx['shiny_item'].set_volume(0.0)
         self.sfx['saw_loop'].set_volume(0.0)
+        self.sfx['gate'].set_volume(0.15)
+        self.sfx['lever'].set_volume(0.15)
 
         
 
@@ -166,7 +177,7 @@ class Game:
         # Entity Init
         self.collectables = []
         self.grubs_collected = 0
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7), ('spawners', 8), ('spawners', 9), ('spawners', 10)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
             if spawner['variant'] == 1:
@@ -182,12 +193,17 @@ class Game:
                 self.collectables.append(Collectable(self, spawner['pos'], 'wings_pickup'))
             if spawner['variant'] == 6:
                 self.collectables.append(Collectable(self, spawner['pos'], 'saw'))
+            if spawner['variant'] == 7:
+                self.collectables.append(Collectable(self, spawner['pos'], 'gate', x_collisions=True))
+            if spawner['variant'] == 8:
+                self.collectables.append(Collectable(self, spawner['pos'], 'lever'))
+
 
         # Hud Init
         self.hud = []
         self.hud.append(HudElement(self, self.assets['guide_move'] ,(4, 4)))
         self.hud.append(HudElement(self, self.assets['guide_jump'] ,(32, 4)))
-        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 24, 2), fixed=True, opacity=180))
+        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180))
         self.score_text = pygame.font.Font('freesansbold.ttf', 30)
         self.score_text_back = pygame.font.Font('freesansbold.ttf', 31)
 
@@ -335,6 +351,11 @@ class Game:
             # Render tilemap
             self.tilemap.render(self.display, offset=render_scroll)
 
+            # Update and render collectables
+            for collectable in self.collectables.copy():
+                collectable.update()
+                collectable.render(self.display, offset=render_scroll)
+
             # Update player movement and animation
             if self.player.can_update and self.player.can_move:
                 self.player.update(self.tilemap, (self.player_movement[1] - self.player_movement[0], 0))
@@ -351,16 +372,12 @@ class Game:
                 if kill:
                     self.particles.remove(particle)
             
-            # Update and render collectables
-            for collectable in self.collectables.copy():
-                collectable.update()
-                collectable.render(self.display, offset=render_scroll)
 
             # Update and render hud elements
             for hud in self.hud.copy():
                 hud.update()
                 hud.render(self.display)
-            if self.playing_timer == 290:
+            if self.playing_timer == 340:
                 self.hud.append(HudElement(self, self.assets['guide_look'] ,(4, 4)))
 
 

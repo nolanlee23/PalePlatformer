@@ -6,7 +6,7 @@ from .particle import Particle
 from .hud import HudElement
 
 # Universal physics constants
-TERMINAL_VELOCITY = 6.0
+TERMINAL_VELOCITY = 5.0
 GRAVITY_CONST = 0.2
 TICK_RATE = 60
 RENDER_SCALE = 4.0
@@ -21,6 +21,8 @@ COLLECTABLE_SIZES = {
     'claw_pickup' : (18, 18),
     'wings_pickup' : (22, 14),
     'saw' : (20, 20),
+    'gate' : (8, 32),
+    'lever' : (16, 14),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
@@ -29,12 +31,14 @@ COLLECTABLE_OFFSETS = {
     'claw_pickup' : (0, 0),
     'wings_pickup' : (0, 0),
     'saw' : (20, 5),
+    'gate' : (0, 0),
+    'lever' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
 ALERT_NOISE_DIST = 35
 ALERT_COOLDOWN = 3
 SHINY_NOISE_DIST = 150
-SAW_NOISE_DIST = 100
+SAW_NOISE_DIST = 80
 
 # Player physics constants
 MOVEMENT_X_SCALE = 1.8
@@ -42,37 +46,39 @@ JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
 AIR_JUMP_Y_VEL = -4.4
 NUM_AIR_DASHES = 1
-VARIABLE_JUMP_SHEAR = 6.0
+VARIABLE_JUMP_SHEAR = 12.0
 AIRTIME_BUFFER = 4
 LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
 DASH_X_SCALE = 4
 DASH_TICK = 14
-DASH_COOLDOWN_TICK = 30
-WALL_SLIDE_VEL = 1.25
+DASH_COOLDOWN_TICK = 26
+WALL_SLIDE_VEL = 1.35
 WALL_JUMP_Y = -4.5
-WALL_JUMP_TICK_CUTOFF = 7
+WALL_JUMP_TICK_CUTOFF = 8
 WALL_JUMP_TICK_STALL = 2
-WALL_JUMP_BUFFER = 8
+WALL_JUMP_BUFFER = 10
 
 # Player animation constants
-PLAYER_ANIM_OFFSET = (-2, -8)
-DASH_ANIM_OFFSET = (-8, -8)
+PLAYER_ANIM_OFFSET = (-3, -8)
+DASH_ANIM_OFFSET = (-9, -8)
 RUN_PARTICLE_DELAY = 10
 DASH_PARTICLE_VEL = 2
 DASH_TRAIL_VARIANCE = 0.3
 NUM_HITSTUN_PARTICLES = 80
 HITSTUN_PARTICLE_VEL = 1
 SLIDE_SFX_LEN = 150
+FALLING_VOLUME = 0.2
 
 class PhysicsEntity:
 
-    def __init__(self, game, e_type, pos, size):
+    def __init__(self, game, e_type, pos, size, scale=1.0):
         # General info and physics
         self.game = game
         self.type = e_type
         self.pos = list(pos)
         self.size = size
+        self.scale = scale
         self.velocity = [0,0]
         self.gravity = GRAVITY_CONST
         self.collisions = {'up' : False, 'down' : False, 'right' : False, 'left' : False}
@@ -162,7 +168,9 @@ class PhysicsEntity:
         """
         Render entity onto surface taking flip and offset into account
         """
-        surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
+        flipped_img = pygame.transform.flip(self.animation.img(), self.flip, False)
+        scaled_img = pygame.transform.scale_by(flipped_img, self.scale)
+        surf.blit(scaled_img, (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
 
 
 
@@ -173,12 +181,15 @@ class Collectable(PhysicsEntity):
 
     total_grubs = 0
     
-    def __init__(self, game, pos, c_type):
-        self.size = COLLECTABLE_SIZES[c_type]
+    def __init__(self, game, pos, c_type, scale=1.0, x_collisions=False):
         self.game = game
         self.pos = (pos[0] + COLLECTABLE_OFFSETS[c_type][0], pos[1] + COLLECTABLE_OFFSETS[c_type][1])
+        self.type = c_type
+        self.size = COLLECTABLE_SIZES[c_type]
+        self.scale = scale
+        self.x_collisions = x_collisions
 
-        super().__init__(game, 'collectables/' + c_type, pos, self.size)
+        super().__init__(game, 'collectables/' + c_type, pos, self.size, self.scale)
 
         if c_type == 'grub':
             Collectable.total_grubs += 1
@@ -196,14 +207,9 @@ class Collectable(PhysicsEntity):
 
     def update(self):
 
-        #print('Grub count: ' + str(Collectable.grubs_collected))
         self.animation.update()
         self.idle_noise_timer += 1
         self.alert_noise_timer += 1
-
-        # Collect upon player collision
-        if self.entity_rect().colliderect(self.game.player.entity_rect()):
-            self.collect()
 
         # Increment collect counter only if collect() has been called
         if self.collect_timer > 0:
@@ -215,6 +221,10 @@ class Collectable(PhysicsEntity):
         self.x_dist = self.rect.centerx - self.player_rect.x
         self.y_dist = self.rect.centery - self.player_rect.y
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
+
+        # Collect when in contact
+        if self.rect.colliderect(self.player_rect):
+            self.collect()
 
         # Saw has circular appearance, use distance from center for collision detection
         if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] + 1:
@@ -238,9 +248,44 @@ class Collectable(PhysicsEntity):
 
         # Play saw blade sound effect
         if self.type == 'collectables/saw':
-            self.game.sfx['saw_loop'].set_volume(min(0.15, (SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST * 2)))
+            self.game.sfx['saw_loop'].set_volume(min(0.2, (SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST)))
             if self.idle_noise_timer % 100 == 1 and self.dist_to_player < SAW_NOISE_DIST * 1.2:
                 self.game.sfx['saw_loop'].play()
+
+        
+        if self.type == 'collectables/lever': 
+
+            if self.collect_timer == 1:
+                self.game.sfx['lever'].play()
+                
+            if self.collect_timer == 30:
+                self.game.sfx['gate'].play()
+                
+            # Open nearest gate after delay
+            if self.collect_timer == 60:
+
+                # Gather gates into a list
+                gate_list = []
+                for entity in self.game.collectables:
+                    if entity.type == 'collectables/gate':
+                        gate_list.append(entity)
+
+                # Compare each in list and finalize closest
+                closest_gate = gate_list[0]
+                for gate in gate_list:
+                    # New gate distance
+                    x_dist = self.rect.centerx - gate.rect.x
+                    y_dist = self.rect.centery - gate.rect.y
+                    dist_to_gate = math.sqrt(x_dist**2 + y_dist**2)
+
+                    closest_x_dist = self.rect.centerx - closest_gate.rect.centerx
+                    closest_y_dist = self.rect.centery - closest_gate.rect.centery
+                    closest_dist_to_gate = math.sqrt(closest_x_dist**2 + closest_y_dist**2)
+                    if dist_to_gate < closest_dist_to_gate:
+                        closest_gate = gate
+                
+                closest_gate.set_action('drop')
+                closest_gate.x_collisions = False
 
         # Play time based grub sound effects
         if self.type == 'collectables/grub':
@@ -302,14 +347,31 @@ class Collectable(PhysicsEntity):
         """
         Events occuring while player collides with collectable
         """
+        # Set spawn point on checkpoint
         if self.type == 'collectables/respawn':
             self.game.player_spawn_pos = list(self.pos)
 
+        # Start save animation
         if self.type == 'collectables/grub':
             self.set_action('collect')
-        
 
-        # If item is a pickup item
+        # Lever pull animation
+        if self.type == 'collectables/lever':
+            self.set_action('collect')
+
+        # Collide with player
+        if self.x_collisions:
+            if self.player_rect.centerx < self.rect.centerx:
+                self.game.player.collisions['right'] = True
+                self.player_rect.right = self.rect.left
+                self.game.player.entity_x_colliding = 0
+            else:
+                self.game.player.collisions['left'] = True
+                self.player_rect.left = self.rect.right
+                self.game.player.entity_x_colliding = 1
+            self.game.player.pos[0] = self.player_rect.x
+            
+        # If item is an ability pickup item
         if self.type[-6:] == 'pickup':
 
             if self.type == 'collectables/cloak_pickup':
@@ -342,7 +404,7 @@ class Collectable(PhysicsEntity):
             
             return
 
-        # Start timer only first frame of contact with player
+        # Start collect timer only first frame of contact with player
         if self.collect_timer < 1:
             self.collect_timer = 1
 
@@ -361,6 +423,9 @@ class Player(PhysicsEntity):
 
         # Control variables
         self.intangibility_timer = 0
+        self.player_rect = 0
+        self.entity_x_colliding = -1
+        self.entity_collision = False
         self.can_update = True
         self.can_move = True
 
@@ -369,12 +434,15 @@ class Player(PhysicsEntity):
         self.has_claw = False
         self.running_time = 0                           # Time spent running    
         self.air_time = -10                             # Time since leaving ground
+        self.falling_time = 0                           # Time since started having negative velocity
         self.wall_jump_timer = 0                        # Time since leaving wall from wall jump
         self.sliding_time = 0                           # Time spent wall sliding
         self.wall_slide = False                         
         self.wall_slide_timer = 1                       # Time since last moment sliding on wall
         self.wall_slide_right = False                   # True if wall sliding on right wall, False if left wall
+        self.wall_slide_x_pos = 0                       # Tracker to prevent wall jumping (in buffer) while not next to wall
         self.jumps = NUM_AIR_JUMPS
+        self.air_jumping = 0
         self.wall_jump_direction = False                # False is left jump (right wall), True is right jump (left wall)
 
 
@@ -404,27 +472,34 @@ class Player(PhysicsEntity):
         #### MOVEMENT ###
 
 
+    
+
         # Override player movement for a short period after wall jump
         if self.wall_jump_timer < WALL_JUMP_TICK_CUTOFF:
             if self.wall_jump_direction == True:        # Left wall
                 movement = (MOVEMENT_X_SCALE, movement[1])
             else:                                       # Right wall
                 movement = (-MOVEMENT_X_SCALE, movement[1])
+
         # Stall for a brief period before control is given back after wall jump
         elif self.wall_jump_timer < WALL_JUMP_TICK_CUTOFF + WALL_JUMP_TICK_STALL:
             movement = (0, movement[1])
+
         # Apply fast dash movement while dashing
         elif abs(self.dash_timer) > 0:
             movement = (math.copysign(1.0, self.dash_timer) * DASH_X_SCALE, movement[1])
         else:
+            
         # Apply normal horizontal movement scale 
             movement = (movement[0] * MOVEMENT_X_SCALE, movement[1])
+
 
         # Suspend gravity completely while dashing
         if abs(self.dash_timer) > 0:
             self.gravity = 0
             self.velocity[1] = 0
             movement = (movement[0], 0)
+
         # Minimize gravity at the peak of player jump to add precision
         elif self.air_time > AIRTIME_BUFFER and self.velocity[1] > -LOW_GRAV_THRESHOLD and self.velocity[1] < LOW_GRAV_THRESHOLD:
             self.gravity = GRAVITY_CONST / LOW_GRAV_DIVISOR
@@ -434,6 +509,17 @@ class Player(PhysicsEntity):
 
         # Update collision and position based on movement
         super().update(tilemap, movement=movement)
+
+        # Check for entity collision from left or right
+        self.entity_collision = False
+        if self.entity_x_colliding == 0:
+            self.collisions['left'] = True
+            self.entity_collision = True
+        if self.entity_x_colliding == 1:
+            self.collisions['right'] = True
+            self.entity_collision = True
+        self.entity_x_colliding = -1
+
 
         # Void out and death warp if player falls below given Y value
         if self.pos[1] > VOID_HEIGHT:
@@ -446,27 +532,46 @@ class Player(PhysicsEntity):
         if below_tile['type'] == 'spikes' and self.collisions['down'] == True:
             self.game.damage_fade_out = True
 
-        # Update jump control variables
+        # Update control variables
         self.air_time += 1
         self.wall_jump_timer += 1
         self.dash_cooldown_timer += 1
         self.wall_slide_timer += 1
         self.wall_slide = False
         self.anim_offset = PLAYER_ANIM_OFFSET
+        if self.air_jumping > 0:
+            self.air_jumping += 1
 
-        # Reset upon touching ground
+        # Reset mobility upon touching ground
         if self.collisions['down']:
             self.jumps = NUM_AIR_JUMPS
             self.dashes = NUM_AIR_DASHES
+            self.air_jumping = 0
             
             if self.air_time > AIRTIME_BUFFER and self.dash_cooldown_timer > DASH_TICK and not below_tile['type'] == 'spikes':
-                self.game.sfx['land'].play()
+                # Hard landing
+                if self.game.sfx['falling'].get_volume() > FALLING_VOLUME - 0.01:
+                    self.game.sfx['land_hard'].play()
+                    # Large dust plume
+                    for i in range(40):
+                        self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midbottom, velocity=(random.uniform(-2.5, 2.5), random.uniform(0, 0.5))))
+                # Normal landing
+                else:
+                    self.game.sfx['land'].play()
+                    # Dust plume
+                    for i in range(10):
+                        self.game.particles.append(Particle(self.game, 'run_particle', self.entity_rect().midbottom, velocity=(random.uniform(-0.5, 0.5), random.uniform(0.1, 0.3))))
+            
+            self.game.sfx['falling'].stop()
             self.air_time = 0
 
-        # Reset upon grabbing walls
+        # Reset mobility upon grabbing wall
         if self.sliding_time > 0:
             self.jumps = NUM_AIR_JUMPS
             self.dashes = NUM_AIR_DASHES
+            self.air_jumping = 0
+            self.game.sfx['falling'].stop()
+
 
 
         # Decrement dash timer towards 0 from both sides
@@ -486,8 +591,8 @@ class Player(PhysicsEntity):
 
         if not self.can_move:
             self.set_action('kneel')
-        # Check for wall slide, reduce Y speed if touching wall
-        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw:
+        # Check for wall slide, reduce Y ďpeed if touching wall
+        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw and not self.entity_collision:
 
             # Only play grabbing wall sound if not touching wall previously
             if self.wall_slide_timer > AIRTIME_BUFFER:
@@ -502,6 +607,9 @@ class Player(PhysicsEntity):
             self.wall_slide_right = True if self.collisions['right'] else False
             self.sliding_time += 1
 
+            if self.sliding_time == 1:
+                self.wall_slide_x_pos = self.pos[0]
+
             self.dash_timer /= 2
             self.velocity[1] = min(self.velocity[1], WALL_SLIDE_VEL)
 
@@ -509,7 +617,7 @@ class Player(PhysicsEntity):
 
             # Wall slide animation facing right, opposite of wall
             player_rect = self.entity_rect()
-            if self.collisions['right']:
+            if self.wall_slide_right:
                 self.flip = False
                 slide_particle_pos = player_rect.midright
             else:
@@ -526,15 +634,20 @@ class Player(PhysicsEntity):
             self.set_action('dash')         # Dashing
             self.anim_offset = DASH_ANIM_OFFSET
             # Dash particles 
-            dash_trail_pos = (self.entity_rect().centerx, self.entity_rect().centery + random.randint(-1, 1) / DASH_TRAIL_VARIANCE)
-            self.game.particles.append(Particle(self.game, 'cloak_particle', dash_trail_pos, velocity=(0,0), frame=0))
+            if not self.collisions['left'] and not self.collisions['right']:
+                dash_trail_pos = (self.entity_rect().centerx, self.entity_rect().centery + random.randint(-1, 1) / DASH_TRAIL_VARIANCE)
+                self.game.particles.append(Particle(self.game, 'dash_particle', dash_trail_pos, velocity=(0,0), frame=0))
 
         # Buffer for small amounts of airtime flashing animation
         elif self.air_time > AIRTIME_BUFFER:
             if self.velocity[1] < 0:
                 self.set_action('jump')     # Rising
+                # Drifting random wing particles while rising
+                if self.air_jumping > 0 and self.air_jumping < 16:
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', (self.entity_rect().centerx + random.randint(-10, 10), self.entity_rect().centery), velocity=(random.uniform(-0.1, 0.1), random.uniform(0, 0.2))))
             else:
                 self.set_action('fall')     # Falling
+
         # Run if moving and not moving into a wall
         elif movement[0] != 0 and not self.collisions['left'] and not self.collisions['right']:
             self.set_action('run')          # Running
@@ -575,7 +688,32 @@ class Player(PhysicsEntity):
         else:
             self.idle_timer = 0
 
-        
+        # Cancel wall slide when player x pos goes behind wall
+        if self.sliding_time > 1:
+                if not self.pos[0] == self.wall_slide_x_pos:
+                    if self.wall_slide_right and self.pos[0] > self.wall_slide_x_pos:
+                        print('cancel', end='')
+                        self.wall_slide = False
+                        self.sliding_time = 0
+                        self.wall_slide_timer = WALL_JUMP_BUFFER
+                    if not self.wall_slide_right and self.pos[0] < self.wall_slide_x_pos:
+                        print('cancel', end='')
+                        self.wall_slide = False
+                        self.sliding_time = 0
+                        self.wall_slide_timer = WALL_JUMP_BUFFER
+
+
+        # Add falling timer for hard landing sound effects
+        if self.velocity[1] > 0:
+            self.falling_time += 1
+        if self.velocity[1] < 0 or self.air_time < AIRTIME_BUFFER or self.sliding_time > 0:
+            self.falling_time = 0
+        if self.falling_time < TICK_RATE:
+            self.game.sfx['falling'].set_volume(0.0)
+        if self.falling_time == TICK_RATE:
+            self.game.sfx['falling'].play()
+        if self.falling_time >= TICK_RATE and self.velocity[1] > 0:
+            self.game.sfx['falling'].set_volume(min(FALLING_VOLUME, self.game.sfx['falling'].get_volume() + 0.01))
 
 
         # Ensure no lingering sound effects
@@ -599,27 +737,43 @@ class Player(PhysicsEntity):
             self.game.sfx['wall_jump'].play()
             if not self.wall_slide_right:         # Off of left wall
                 self.wall_jump_direction = True
+                particle_loc = self.entity_rect().bottomleft
             elif self.wall_slide_right:           # Off of right wall
                 self.wall_jump_direction = False
+                particle_loc = self.entity_rect().bottomright
             self.wall_jump_timer = 0
             self.velocity[1] = WALL_JUMP_Y
             self.air_time = AIRTIME_BUFFER + 1
+
+            for i in range(6):
+                    self.game.particles.append(Particle(self.game, 'run_particle', particle_loc, velocity=(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.3))))
             return True
         # Normal and double jump
         elif self.jumps and not self.dash_timer:
-            if self.air_time > AIRTIME_BUFFER * 2:              # Mid Air jump
+            if self.air_time > AIRTIME_BUFFER * 2: 
+                # Mid Air jump             
                 if self.has_wings:
                     self.jumps = min(0, self.jumps - 1)
                     self.velocity[1] = AIR_JUMP_Y_VEL
+                    self.air_jumping = 1
                     self.game.sfx['wings'].play()
-                # Midair wing jump particle: 1 for wing animation, 3 short bursts in each downward direction
+                    # Midair wing jump particle: 1 for wing animation, 6 bursts in each downward direction
                     self.game.particles.append(Particle(self.game, 'wings_particle', self.entity_rect().center, velocity=(0, 0), flip=self.flip, follow_player=True))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().center, velocity=(0, 0.8)))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midleft, velocity=(-1, 0.6)))
-                    self.game.particles.append(Particle(self.game, 'slide_particle', self.entity_rect().midright, velocity=(1, 0.6)))
-            else:                                               # Grounded jump
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().center, velocity=(-0.1, 0.3)))
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().center, velocity=(0.1, 0.3)))
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midleft + (2,0), velocity=(-0.2, 0.2)))
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midright + (-2,0), velocity=(0.2, 0.2)))
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midleft, velocity=(-0.4, 0.1)))
+                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midright, velocity=(0.4, 0.1)))
+            # Grounded jump
+            else:                                        
                 self.velocity[1] = JUMP_Y_VEL
                 self.game.sfx['jump'].play()
+
+                # Dust plume around jump
+                for i in range(6):
+                    self.game.particles.append(Particle(self.game, 'run_particle', self.entity_rect().midbottom, velocity=(random.uniform(-0.4, 0.4), random.uniform(-0.4, -0.1))))
+            
             self.air_time = AIRTIME_BUFFER + 1
             return True
         
@@ -630,8 +784,13 @@ class Player(PhysicsEntity):
         Allow variable jump height by reducing velocity on SPACE keystroke up
         """
         if self.velocity[1] < 0:
-            self.velocity[1] /= VARIABLE_JUMP_SHEAR
+            if self.wall_jump_timer > WALL_JUMP_TICK_CUTOFF:
+                self.velocity[1] /= VARIABLE_JUMP_SHEAR
+            else:
+                self.velocity[1] /= VARIABLE_JUMP_SHEAR / 4
+            self.wall_jump_timer *= 2
             self.gravity = GRAVITY_CONST
+            self.air_jumping = 0
 
     def dash(self):
         """
@@ -652,11 +811,11 @@ class Player(PhysicsEntity):
             self.sliding_time = 0
             self.dash_cooldown_timer = -DASH_TICK
 
-            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
-            self.game.particles.append(Particle(self.game, 'cloak_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().center, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midtop, velocity=dash_particle_vel, frame=0))
+            self.game.particles.append(Particle(self.game, 'dash_particle', self.entity_rect().midbottom, velocity=dash_particle_vel, frame=0))
 
-            self.game.sfx['cloak'].play()
+            self.game.sfx['dash'].play()
 
             return True
         
@@ -666,6 +825,7 @@ class Player(PhysicsEntity):
         """
         self.set_action('hitstun')
         self.game.sfx['land'].stop()
+        self.game.sfx['falling'].stop()
         self.game.sfx['wings'].stop()
         self.game.sfx['cloak'].stop()
         self.game.sfx['run_grass'].stop()
