@@ -20,7 +20,7 @@ class Editor:
         self.clock = pygame.time.Clock()
 
         # full size screen used for window
-        self.screen = pygame.display.set_mode(SCREEN_SIZE)
+        self.screen = pygame.display.set_mode(SCREEN_SIZE, flags=pygame.SCALED, vsync=1)
         pygame.display.set_caption("PixelKnight - LEVEL EDITOR")
 
         # 1/2 scale display used for rendering, scale up to screen
@@ -47,6 +47,7 @@ class Editor:
         # Camera Init
         self.scroll = [0, 0]
         self.movement = [False, False, False, False]
+        self.pos_text = pygame.font.Font('freesansbold.ttf', 30)
 
         # Tile Creation Init
         self.tile_list = list(self.assets)
@@ -191,6 +192,10 @@ class Editor:
 
             # Render display onto screen (upscaling)
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
+
+            # Render UI
+            pos_img = self.pos_text.render(str(tile_pos), True, (200, 200, 200))
+            self.screen.blit(pos_img, (SCREEN_SIZE[0] - pos_img.get_width() - 8, 13))
 
             # End frame
             pygame.display.update()

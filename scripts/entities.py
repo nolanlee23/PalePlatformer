@@ -10,7 +10,8 @@ TERMINAL_VELOCITY = 5.0
 GRAVITY_CONST = 0.2
 TICK_RATE = 60
 RENDER_SCALE = 4.0
-VOID_HEIGHT = 400
+DEPTHS_Y = 400
+DEPTHS_X = -300
 
 
 # Collectable constants
@@ -200,6 +201,7 @@ class Collectable(PhysicsEntity):
         self.collect_timer = 0
         self.idle_noise_timer = 0
         self.alert_noise_timer = TICK_RATE * ALERT_COOLDOWN
+        self.shade_noise_timer = 0
         self.alerted = False
         
         self.dist_to_player = 0
@@ -214,6 +216,7 @@ class Collectable(PhysicsEntity):
         self.animation.update()
         self.idle_noise_timer += 1
         self.alert_noise_timer += 1
+        self.shade_noise_timer += 1
 
         # Increment collect counter only if collect() has been called
         if self.collect_timer > 0:
@@ -253,18 +256,19 @@ class Collectable(PhysicsEntity):
         # Play saw blade sound effect
         if self.type == 'collectables/saw':
             self.game.sfx['saw_loop'].set_volume(min(0.2, (SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST)))
-            if self.dist_to_player < SAW_NOISE_DIST * 1.2:
-                print(str(self.dist_to_player))
             if self.idle_noise_timer % 100 == 1 and self.dist_to_player < SAW_NOISE_DIST * 1.2:
                 self.game.sfx['saw_loop'].play()
 
-        # Spawn floating void particles
+        # Spawn floating void particles and handle collision
         if self.type == 'collectables/shade_gate':
+
+            # Remove collision if player is cloak dashing
             if self.game.player.cloak_timer > 0 and self.game.player.cloak_timer < DASH_TICK:
                 self.x_collisions = False
             else:
                 self.x_collisions = True
             
+            # Spawn waves of particles
             if self.dist_to_player < 250:
                 self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=2))
 
@@ -380,6 +384,11 @@ class Collectable(PhysicsEntity):
         # Lever pull animation
         if self.type == 'collectables/lever':
             self.set_action('collect')
+
+        if self.type == 'collectables/shade_gate':
+            if self.shade_noise_timer > 30 and self.game.player.cloak_timer > 0 and self.game.player.cloak_timer < DASH_TICK:
+                self.game.sfx['shade_gate'].play()
+                self.shade_noise_timer = 0
 
         # Collide with player
         if self.x_collisions:
@@ -551,8 +560,10 @@ class Player(PhysicsEntity):
         self.entity_x_colliding = -1
 
 
-        # Void out and death warp if player falls below given Y value
-        if self.pos[1] > VOID_HEIGHT:
+        # Void out and death warp if player falls below given Y value (and not in depths)
+        if self.pos[1] > DEPTHS_Y and self.pos[0] > DEPTHS_X:
+            self.game.damage_fade_out = True
+        elif self.pos[1] > DEPTHS_Y * 4:
             self.game.damage_fade_out = True
 
         # Void out and death warp if player collides with spike tiles
@@ -879,6 +890,7 @@ class Player(PhysicsEntity):
         self.game.sfx['hitstun'].play()
         self.can_update = False
         self.can_move = False
+        self.falling_time = 0
 
         for i in range(NUM_HITSTUN_PARTICLES):
             hitstun_particle_vel = (random.uniform(-5, 5), random.uniform(-5, 5)) * HITSTUN_PARTICLE_VEL

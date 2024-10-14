@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 from scripts.entities import PhysicsEntity, Collectable, Player
 from scripts.utils import load_image, load_images, Animation
@@ -18,6 +19,9 @@ CAMERA_SMOOTH = 10
 LOOK_OFFSET = 4.5
 LOOK_THRESHOLD = 20
 FADE_SPEED = 8
+DEPTHS_Y = 250
+DEPTHS_X = -300
+DEFAULT_MUSIC_VOLUME = 1.1
 
 class Game:
 
@@ -37,13 +41,19 @@ class Game:
         # Blackout surface for level transition and death effects
         self.blackout_surf = pygame.Surface(SCREEN_SIZE)
         self.blackout_surf.fill((0, 0, 0))
-        self.blackout_alpha = 255
+        self.darken_surf = pygame.Surface(SCREEN_SIZE)
+        self.darken_surf.fill((0, 0, 0))
         self.damage_fade_in = False
         self.damage_fade_out = False
+        self.blackout_alpha = 255                                   # Total blackout during transitions and damage effects
+        self.background_alpha = 230                                 # Normal background, hidden in depths
+        self.depths_background_alpha = 0                            # Depths background, only visible in bottom left corner
+        self.darken_alpha = 0                                       # Slight darkness effect while near void depth   
 
         # Load assets
         self.assets = {
-            'background' : load_image('backgrounds/green_cave.png'),
+            'background' : load_image('backgrounds/blue_cave.png'),
+            'void_background' : load_image('backgrounds/void_background.png'),
             'grub_icon' : load_image('hud/counter/grub_icon.png'),
             'guide_move' : load_image('hud/guide/guide_move.png'),
             'guide_jump' : load_image('hud/guide/guide_jump.png'),
@@ -95,6 +105,7 @@ class Game:
         }
 
         # Load audio
+        self.music_volume = DEFAULT_MUSIC_VOLUME
         self.sfx = {
             'run_grass' : pygame.mixer.Sound('sfx/run_grass.wav'),
             'run_stone' : pygame.mixer.Sound('sfx/run_stone.wav'),
@@ -115,8 +126,10 @@ class Game:
             'grub_break' : pygame.mixer.Sound('sfx/grub_break.wav'),
             'grub_burrow' : pygame.mixer.Sound('sfx/grub_burrow.wav'),
             'grub_alert' : pygame.mixer.Sound('sfx/grub_alert.wav'),
+            'grub_sad_1' : pygame.mixer.Sound('sfx/grub_sad_1.wav'),
             'grub_sad_idle_1' : pygame.mixer.Sound('sfx/grub_sad_idle_1.wav'),
             'grub_sad_idle_2' : pygame.mixer.Sound('sfx/grub_sad_idle_2.wav'),
+            'grubfather_1' : pygame.mixer.Sound('sfx/grubfather_1.wav'),
             'ability_pickup' : pygame.mixer.Sound('sfx/ability_pickup_boom.wav'),
             'ability_info' : pygame.mixer.Sound('sfx/ability_info.wav'),
             'dark_spell_get' : pygame.mixer.Sound('sfx/dark_spell_get.wav'),
@@ -124,6 +137,7 @@ class Game:
             'saw_loop' : pygame.mixer.Sound('sfx/saw_loop.wav'),
             'gate' : pygame.mixer.Sound('sfx/gate.wav'),
             'lever' : pygame.mixer.Sound('sfx/lever.wav'),
+            'shade_gate' : pygame.mixer.Sound('sfx/shade_gate.wav'),
         }
 
         # Initialize audio volume
@@ -146,8 +160,10 @@ class Game:
         self.sfx['grub_break'].set_volume(0.15)
         self.sfx['grub_burrow'].set_volume(0.35)
         self.sfx['grub_alert'].set_volume(0.3)
+        self.sfx['grub_sad_1'].set_volume(0.1)
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
+        self.sfx['grubfather_1'].set_volume(0.1)
         self.sfx['ability_pickup'].set_volume(0.3)
         self.sfx['ability_info'].set_volume(0.1)
         self.sfx['dark_spell_get'].set_volume(0.4)
@@ -155,6 +171,7 @@ class Game:
         self.sfx['saw_loop'].set_volume(0.0)
         self.sfx['gate'].set_volume(0.15)
         self.sfx['lever'].set_volume(0.15)
+        self.sfx['shade_gate'].set_volume(0.3)
 
         
 
@@ -227,13 +244,16 @@ class Game:
         """
         Primary game loop; controls rendering, game initialization, and player input
         """
-        # Start looping music playback
-        pygame.mixer.music.load('sfx/music_crossroads.wav')
-        pygame.mixer.music.set_volume(0.05)
-        pygame.mixer.music.play(-1)
 
          # Runs 60 times per second
         while True:
+
+            # Start looping music playback
+            if not pygame.mixer.music.get_busy():
+                music_num = random.randint(0, 4)
+                pygame.mixer.music.load('sfx/music_' + str(music_num) + '.wav')
+                pygame.mixer.music.set_volume(self.music_volume)
+                pygame.mixer.music.play(-1)
 
             # Input event loop
             for event in pygame.event.get():
@@ -245,42 +265,51 @@ class Game:
 
                 # Keystroke down
                 if event.type == pygame.KEYDOWN and self.player.can_move:
-                    if event.key == pygame.K_a or event.key == pygame.K_LEFT:         # A is left
+                    if event.key == pygame.K_a or event.key == pygame.K_LEFT:           # A is left
                         self.player_movement[0] = True
                         self.player.holding_left = True
-                    if event.key == pygame.K_d or event.key == pygame.K_RIGHT:         # D is right
+                    if event.key == pygame.K_d or event.key == pygame.K_RIGHT:          # D is right
                         self.player_movement[1] = True
                         self.player.holding_right = True
-                    if event.key == pygame.K_w or event.key == pygame.K_UP:         # W is up
+                    if event.key == pygame.K_w or event.key == pygame.K_UP:             # W is up
                         self.player.holding_up = True
-                    if event.key == pygame.K_s or event.key == pygame.K_DOWN:         # S is down
+                    if event.key == pygame.K_s or event.key == pygame.K_DOWN:           # S is down
                         self.player.holding_down = True
-                    if event.key == pygame.K_SPACE:     # SPACE is jump
+                    if event.key == pygame.K_SPACE:                                     # SPACE is jump
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:    # SHIFT is dash
                         self.player.dash()
-                    if event.key == pygame.K_v:         # V is dev unlock
+                    if event.key == pygame.K_v:                                         # V is ALL dev unlock
                         self.player.has_dash = True
-                        self.player.has_cloak = True
                         self.player.has_claw = True
                         self.player.has_wings = True
-                    if event.key == pygame.K_MINUS:         # Minus is anit-softlock
+                        self.player.has_cloak = True
+                        self.sfx['grubfather_1'].play()
+                    if event.key == pygame.K_7:                                         # 7 is unlock dash
+                        self.player.has_dash = True
+                    if event.key == pygame.K_8:                                         # 8 is unlock claw
+                        self.player.has_claw = True
+                    if event.key == pygame.K_9:                                         # 9 is unlock wings
+                        self.player.has_wings = True
+                    if event.key == pygame.K_0:                                         # 0 is unlock cloak
+                        self.player.has_cloak = True
+                    if event.key == pygame.K_MINUS:                                     # Minus is anit-softlock
                         self.damage_fade_out = True
 
                 # Keystroke up
                 if event.type == pygame.KEYUP:
-                    if event.key == pygame.K_a:
+                    if event.key == pygame.K_a or event.key == pygame.K_LEFT:
                         self.player_movement[0] = False
                         self.player.holding_left = False 
-                    if event.key == pygame.K_d:
+                    if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                         self.player_movement[1] = False
                         self.player.holding_right = False
-                    if event.key == pygame.K_w:         
+                    if event.key == pygame.K_w or event.key == pygame.K_UP:         
                         self.player.holding_up = False
-                    if event.key == pygame.K_s:         
+                    if event.key == pygame.K_s or event.key == pygame.K_DOWN:         
                         self.player.holding_down = False
                     if event.key == pygame.K_SPACE:
-                        self.player.jump_release()      # Jump release for variable jump height
+                        self.player.jump_release()                                      # Jump release for variable jump height
 
             # Fix movement not being updated 
             if not self.player_movement[0] and self.player.holding_left:
@@ -298,6 +327,46 @@ class Game:
             if self.player.looking_down and self.player.idle_timer > LOOK_THRESHOLD:
                 self.scroll = [self.scroll[0], self.scroll[1] + LOOK_OFFSET]
                 self.camera_smooth = CAMERA_SMOOTH * 1.75
+
+
+            # Draw blank black background
+            self.display.fill((0, 0, 0))
+
+            # Determine depths background opacity
+            if self.player.pos[0] < DEPTHS_X:
+                self.depths_background_alpha = min(90, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.1)
+
+                # If in depths in both X and Y,
+                if self.player.pos[1] > DEPTHS_Y:
+
+                    # Mute music based on depth
+                    pygame.mixer.music.set_volume(max(0, DEFAULT_MUSIC_VOLUME - (self.player.pos[1] - DEPTHS_Y) * 0.005))
+
+                    # Spawn floating void particles
+                    if random.randint(0, abs(15 - int(self.player.pos[1] // 100))) == 0 and self.player.pos[1] > DEPTHS_Y + 40:
+                        self.particles.append(Particle(self, 'long_cloak_particle', (self.player.pos[0] + random.randint(-250, 250), self.player.pos[1] + random.randint(-200, 200)), velocity=(random.uniform(-0.2, 0.2), random.uniform(-0.2, 0.2))))
+                else:
+                    pygame.mixer.music.set_volume(DEFAULT_MUSIC_VOLUME)
+            else:
+                self.depths_background_alpha = 0
+
+            # Draw depths background
+            depths_img = self.assets['void_background']
+            depths_img.set_alpha(self.depths_background_alpha)
+            self.display.blit(depths_img, (0, 0))
+
+            # Determine normal background opacity
+            if self.player.pos[1] > DEPTHS_Y:
+                self.background_alpha = max(0, 230 - (self.player.pos[1] - DEPTHS_Y) * 1.5)
+                self.darken_alpha = min(120, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.2)
+            else:
+                self.background_alpha = 230
+                self.darken_alpha = 0
+            
+            # Draw normal background
+            background_img = self.assets['background']
+            background_img.set_alpha(self.background_alpha)
+            self.display.blit(self.assets['background'], (0,0))
 
 
             # Freeze player when fading in or out from death warp
@@ -351,9 +420,6 @@ class Game:
                 self.blackout_alpha -= 10
                 self.player.can_move = True
             
-            
-            # Draw background
-            self.display.blit(self.assets['background'], (0,0))
 
             # Control Camera
             self.scroll[0] += (self.player.entity_rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / self.camera_smooth
@@ -375,6 +441,10 @@ class Game:
             for collectable in self.collectables.copy():
                 collectable.update()
                 collectable.render(self.display, offset=render_scroll)
+
+            # Render gradual depths fade
+            self.darken_surf.set_alpha(self.darken_alpha)
+            self.display.blit(self.darken_surf)
             
             # Render player
             self.player.render(self.display, offset=render_scroll)
@@ -397,16 +467,17 @@ class Game:
 
 
             # Render display onto final screen (upscaling)
+            self.screen.fill((1, 1, 1))
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
 
-            # Render layered text onto larger screen to accomodate anti aliasing
+            # Render layered text onto screen to accomodate anti aliasing
             score_img_back = self.score_text_back.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (0, 80, 40))
             score_img = self.score_text.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (10, 120, 80))
             self.screen.blit(score_img_back, (SCREEN_SIZE[0] - score_img.get_width() - 9.5, 12))
             self.screen.blit(score_img, (SCREEN_SIZE[0] - score_img.get_width() - 8, 13))
 
 
-            # Render and update blackout surface onto final screen
+            # Render and update blackout surface onto screen
             self.blackout_surf.set_alpha(self.blackout_alpha)
             self.screen.blit(self.blackout_surf)
 
