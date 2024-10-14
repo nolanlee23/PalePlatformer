@@ -15,8 +15,8 @@ RENDER_SCALE = 4.0
 TICK_RATE = 60
 PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (8, 14)
-CAMERA_SMOOTH = 10
-LOOK_OFFSET = 4.5
+CAMERA_SMOOTH = 8
+LOOK_OFFSET = 6.5
 LOOK_THRESHOLD = 20
 FADE_SPEED = 8
 DEPTHS_Y = 250
@@ -102,6 +102,7 @@ class Game:
             'collectables/lever/idle' : Animation(load_images('collectables/lever/idle')),
             'collectables/lever/collect' : Animation(load_images('collectables/lever/collect'), img_dur=6),
             'collectables/shade_gate/idle' : Animation(load_images('collectables/shade_gate/idle'), img_dur=5, loop=True),
+            'collectables/slippery_rock/idle' : Animation(load_images('collectables/slippery_rock/idle')),
         }
 
         # Load audio
@@ -202,13 +203,14 @@ class Game:
         # Entity Init
         self.collectables = []
         self.grubs_collected = 0
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7), ('spawners', 8), ('spawners', 9), ('spawners', 10)]):
+        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7), ('spawners', 8), ('spawners', 9), ('spawners', 10) , ('spawners', 11)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
             if spawner['variant'] == 1:
                 self.collectables.append(Collectable(self, spawner['pos'], 'grub'))
             if spawner['variant'] == 2:
-                self.player.pos = spawner['pos']
+                self.player.pos = spawner['pos'].copy()
+                self.world_spawn_pos = spawner['pos'].copy()
                 self.player_spawn_pos = spawner['pos'].copy()
             if spawner['variant'] == 3:
                 self.collectables.append(Collectable(self, spawner['pos'], 'cloak_pickup'))
@@ -226,6 +228,8 @@ class Game:
                 self.collectables.append(Collectable(self, spawner['pos'], 'dash_pickup'))
             if spawner['variant'] == 10:
                 self.collectables.append(Collectable(self, spawner['pos'], 'shade_gate', x_collisions=True))
+            if spawner['variant'] == 11:
+                self.collectables.append(Collectable(self, spawner['pos'], 'slippery_rock', x_collisions=True))
 
 
         # Hud Init
@@ -249,6 +253,7 @@ class Game:
 
          # Runs 60 times per second
         while True:
+
 
             # Start looping music playback
             if not pygame.mixer.music.get_busy():
@@ -299,6 +304,8 @@ class Game:
                         self.player.has_cloak = True
                     if event.key == pygame.K_MINUS:                                     # Minus is anit-softlock
                         self.damage_fade_out = True
+                    if event.key == pygame.K_BACKSPACE:                                  # Backspace is set spawn to world spawn
+                        self.player_spawn_pos = self.world_spawn_pos.copy()
 
                 # Keystroke up
                 if event.type == pygame.KEYUP:

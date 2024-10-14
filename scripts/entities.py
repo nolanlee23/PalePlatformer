@@ -26,6 +26,7 @@ COLLECTABLE_SIZES = {
     'lever' : (16, 14),
     'dash_pickup' : (16, 16),
     'shade_gate' : (16, 32),
+    'slippery_rock' : (8, 32),
 }
 COLLECTABLE_OFFSETS = {
     'respawn' : (0, 2),
@@ -38,6 +39,7 @@ COLLECTABLE_OFFSETS = {
     'wings_pickup' : (0, 0),
     'cloak_pickup' : (0, 0),
     'shade_gate' : (0, 0),
+    'slippery_rock' : (0, 0),
 }
 GRUB_NOISE_DIST = 200
 ALERT_NOISE_DIST = 45
@@ -49,7 +51,7 @@ SAW_NOISE_DIST = 80
 MOVEMENT_X_SCALE = 1.8
 JUMP_Y_VEL = -5.0
 NUM_AIR_JUMPS = 1
-AIR_JUMP_Y_VEL = -4.4
+AIR_JUMP_Y_VEL = -4.6
 NUM_AIR_DASHES = 1
 VARIABLE_JUMP_SHEAR = 12.0
 AIRTIME_BUFFER = 4
@@ -59,7 +61,7 @@ DASH_X_SCALE = 4
 DASH_TICK = 14
 DASH_COOLDOWN_TICK = 26
 WALL_SLIDE_VEL = 1.35
-WALL_JUMP_Y = -4.5
+WALL_JUMP_Y = -4.6
 WALL_JUMP_TICK_CUTOFF = 8
 WALL_JUMP_TICK_STALL = 2
 WALL_JUMP_BUFFER = 10
@@ -780,8 +782,8 @@ class Player(PhysicsEntity):
         Check if player is eligible to jump, perform jump and wall jump
         Return TRUE if player has sucessfully jumped
         """
-        # Wall jump
-        if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw:
+        # Wall jump if wall sliding, has claw, and has not wall jumped in ~10 frames
+        if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw and self.wall_jump_timer > WALL_JUMP_BUFFER + 4:
             self.game.sfx['wall_jump'].play()
             if not self.wall_slide_right:         # Off of left wall
                 self.wall_jump_direction = True
@@ -793,10 +795,10 @@ class Player(PhysicsEntity):
             self.velocity[1] = WALL_JUMP_Y
             self.air_time = AIRTIME_BUFFER + 1
 
-            for i in range(6):
+            for i in range(5):
                     self.game.particles.append(Particle(self.game, 'run_particle', particle_loc, velocity=(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.3))))
             return True
-        # Normal and double jump
+        # Normal and double jump if grounded or not
         elif self.jumps and not self.dash_timer:
             if self.air_time > AIRTIME_BUFFER * 2: 
                 # Mid Air jump             
@@ -836,7 +838,7 @@ class Player(PhysicsEntity):
                 self.velocity[1] /= VARIABLE_JUMP_SHEAR
             else:
                 self.velocity[1] /= VARIABLE_JUMP_SHEAR / 4
-            self.wall_jump_timer *= 2
+            self.wall_jump_timer *= 1.5
             self.gravity = GRAVITY_CONST
             self.air_jumping = 0
 
