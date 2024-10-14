@@ -83,7 +83,7 @@ class Game:
             'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=8),
             'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
             'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4),
-            'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=8),
+            'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=10),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
             'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=7),
@@ -138,6 +138,7 @@ class Game:
             'gate' : pygame.mixer.Sound('sfx/gate.wav'),
             'lever' : pygame.mixer.Sound('sfx/lever.wav'),
             'shade_gate' : pygame.mixer.Sound('sfx/shade_gate.wav'),
+            'shade_gate_repel' : pygame.mixer.Sound('sfx/shade_gate_repel.wav'),
         }
 
         # Initialize audio volume
@@ -166,12 +167,13 @@ class Game:
         self.sfx['grubfather_1'].set_volume(0.1)
         self.sfx['ability_pickup'].set_volume(0.3)
         self.sfx['ability_info'].set_volume(0.1)
-        self.sfx['dark_spell_get'].set_volume(0.4)
+        self.sfx['dark_spell_get'].set_volume(0.5)
         self.sfx['shiny_item'].set_volume(0.0)
         self.sfx['saw_loop'].set_volume(0.0)
         self.sfx['gate'].set_volume(0.15)
         self.sfx['lever'].set_volume(0.15)
-        self.sfx['shade_gate'].set_volume(0.3)
+        self.sfx['shade_gate'].set_volume(0.35)
+        self.sfx['shade_gate_repel'].set_volume(0.3)
 
         
 
@@ -260,6 +262,8 @@ class Game:
 
                 # Exit the application
                 if event.type == pygame.QUIT:
+                    print('Death Count: ' + str(self.player.death_counter))
+                    print('Playing Time: ' + str(self.playing_timer // TICK_RATE) + ' seconds')
                     pygame.quit()
                     sys.exit()
 

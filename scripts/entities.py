@@ -269,7 +269,7 @@ class Collectable(PhysicsEntity):
                 self.x_collisions = True
             
             # Spawn waves of particles
-            if self.dist_to_player < 250:
+            if self.dist_to_player < 250 and random.randint(0, 1) == 1:
                 self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=2))
 
 
@@ -316,7 +316,7 @@ class Collectable(PhysicsEntity):
             if self.collect_timer == 0:
 
                 # Sad grub noises if within distance and after random interval of seconds
-                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(5, 15) * TICK_RATE:
+                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(5, 15) * TICK_RATE and self.game.player.pos[1] < DEPTHS_Y:
                     rand = random.randint(1, 2)
                     rand_chance = random.randint(1, 10)
 
@@ -388,6 +388,9 @@ class Collectable(PhysicsEntity):
         if self.type == 'collectables/shade_gate':
             if self.shade_noise_timer > 30 and self.game.player.cloak_timer > 0 and self.game.player.cloak_timer < DASH_TICK:
                 self.game.sfx['shade_gate'].play()
+                self.shade_noise_timer = 0
+            if self.shade_noise_timer > 180 and self.game.player.has_cloak == False:
+                self.game.sfx['shade_gate_repel'].play()
                 self.shade_noise_timer = 0
 
         # Collide with player
@@ -465,6 +468,7 @@ class Player(PhysicsEntity):
         self.entity_collision = False
         self.can_update = True
         self.can_move = True
+        self.death_counter = 0
 
         # Jump and wall jump variables
         self.has_wings = False
@@ -636,7 +640,7 @@ class Player(PhysicsEntity):
             self.set_action('kneel')
 
         # WALL SLIDE, reduce Y ďpeed if touching wall
-        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw and not self.entity_collision:
+        elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw and not self.entity_collision and self.dash_cooldown_timer > 1:
 
             # Only play grabbing wall sound if not touching wall previously
             if self.wall_slide_timer > AIRTIME_BUFFER:
@@ -738,12 +742,10 @@ class Player(PhysicsEntity):
         if self.sliding_time > 1:
                 if not self.pos[0] == self.wall_slide_x_pos:
                     if self.wall_slide_right and self.pos[0] > self.wall_slide_x_pos:
-                        print('cancel', end='')
                         self.wall_slide = False
                         self.sliding_time = 0
                         self.wall_slide_timer = WALL_JUMP_BUFFER
                     if not self.wall_slide_right and self.pos[0] < self.wall_slide_x_pos:
-                        print('cancel', end='')
                         self.wall_slide = False
                         self.sliding_time = 0
                         self.wall_slide_timer = WALL_JUMP_BUFFER
@@ -843,7 +845,7 @@ class Player(PhysicsEntity):
         Dash by starting timer and taking over player movement until timer reaches zero
         Return TRUE if sucessful dash
         """
-        if self.has_dash and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK and (self.air_time > AIRTIME_BUFFER or (not self.collisions['right'] and not self.collisions['left'])):
+        if self.has_dash and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
             # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
 
@@ -907,6 +909,7 @@ class Player(PhysicsEntity):
         self.velocity[1] = 0
         self.dash_timer = 0
         self.gravity = GRAVITY_CONST
+        self.death_counter += 1
         self.set_action('kneel')
 
     
