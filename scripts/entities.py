@@ -214,6 +214,9 @@ class Collectable(PhysicsEntity):
         
 
     def update(self):
+        """
+        Used to track timers and play time or distance based sound effects
+        """
 
         self.animation.update()
         self.idle_noise_timer += 1
@@ -248,7 +251,7 @@ class Collectable(PhysicsEntity):
 
             # Every other second, pulse circle particle
             if self.idle_noise_timer % TICK_RATE * 2 == 0:
-                self.game.particles.append(Particle(self.game, 'circle_particle', self.rect.center, scale=2, opacity= 255 / 2, fade_out=2))
+                self.game.particles.append(Particle(self.game, 'circle_particle', self.rect.center, scale=2, opacity= 255 / 3, fade_out=1.3))
         
             # Every 5 seconds, play shiny sound
             self.game.sfx['shiny_item'].set_volume((SHINY_NOISE_DIST - self.dist_to_player) / (SHINY_NOISE_DIST * 2))
@@ -275,7 +278,7 @@ class Collectable(PhysicsEntity):
                 self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=2))
 
 
-        
+        # Drop nearest gate and play sfx
         if self.type == 'collectables/lever': 
 
             if self.collect_timer == 1:
@@ -373,7 +376,8 @@ class Collectable(PhysicsEntity):
         
     def collect(self):
         """
-        Events occuring while player collides with collectable
+        Called every frame while player collides with collectable
+        Used to start animations and collisions
         """
         # Set spawn point on checkpoint
         if self.type == 'collectables/respawn':
@@ -418,12 +422,12 @@ class Collectable(PhysicsEntity):
             if self.type == 'collectables/claw_pickup':
                 self.game.player.has_claw = True
                 particle_type ='long_dash_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_climb'] ,(4, 4)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_climb'] ,(4, 0)))
 
             if self.type == 'collectables/wings_pickup':
                 self.game.player.has_wings = True
                 particle_type = 'long_slide_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_fly'] ,(4, 4)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_fly'] ,(4, 0)))
 
             if self.type == 'collectables/cloak_pickup':
                 self.game.player.has_cloak = True
@@ -847,7 +851,7 @@ class Player(PhysicsEntity):
         Dash by starting timer and taking over player movement until timer reaches zero
         Return TRUE if sucessful dash
         """
-        if self.has_dash and not self.dash_timer and self.wall_jump_timer >= WALL_JUMP_TICK_CUTOFF and self.dashes and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
+        if self.has_dash and not self.dash_timer and self.dashes and self.wall_jump_timer > WALL_JUMP_TICK_CUTOFF + WALL_JUMP_TICK_STALL and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
             # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
 
@@ -881,7 +885,8 @@ class Player(PhysicsEntity):
         
     def hitstun_animation(self):
         """
-        Hitstun animation immediately after taking damage
+        Hitstun animation and particles immediately after taking damage
+        Stop mostly all sound effects
         """
         self.set_action('hitstun')
         self.game.sfx['land'].stop()
@@ -904,6 +909,7 @@ class Player(PhysicsEntity):
     def death_warp(self):
         """
         Teleport player to spawn point during fadeout
+        Reset physics constants
         """
         self.can_update = True
         self.pos = self.game.player_spawn_pos.copy()
@@ -915,4 +921,8 @@ class Player(PhysicsEntity):
         self.set_action('kneel')
 
     
-    
+    def grub_pointer(self):
+        """
+        Display particles directing player towards nearest grub
+        """
+        pass

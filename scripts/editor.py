@@ -13,6 +13,9 @@ PLACING_OPACITY = 200
 RENDER_SCALE = 4.0
 
 class Editor:
+    """
+    Seperate level editor to assist in level design
+    """
 
     def __init__(self):
 

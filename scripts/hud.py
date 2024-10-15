@@ -3,8 +3,12 @@ import pygame
 
 
 class HudElement:
+    """
+    Simple hud class to directly display onto main screen
+    Stores information about how long the hud stays on screen and its location
+    """
 
-    def __init__(self, game, image, pos, fixed=False, onscreen_tick=200, fadein_tick=30, fadeout_tick=90, opacity=0, scale=2.0,):
+    def __init__(self, game, image, pos, fixed=False, onscreen_tick=300, fadein_tick=30, fadeout_tick=60, opacity=0, scale=2.0,):
         
         self.game = game
         self.image = pygame.transform.scale(image, (int(image.get_width() * scale), int(image.get_height() * scale)))

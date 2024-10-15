@@ -68,8 +68,8 @@ class Game:
             'spawners' : load_images('tiles/spawners'),
             'spikes' : load_images('tiles/spikes'),
             'player/idle' : Animation(load_images('player/idle')),
-            'player/look_up' : Animation(load_images('player/look_up'), img_dur=4),
-            'player/look_down' : Animation(load_images('player/look_down'), img_dur=4),
+            'player/look_up' : Animation(load_images('player/look_up'), img_dur=6),
+            'player/look_down' : Animation(load_images('player/look_down'), img_dur=6),
             'player/run' : Animation(load_images('player/run'), img_dur=5, loop=True),
             'player/jump' : Animation(load_images('player/jump')),
             'player/fall' : Animation(load_images('player/fall')),
@@ -98,7 +98,7 @@ class Game:
             'collectables/dash_pickup/idle' : Animation(load_images('collectables/dash_pickup/idle')),
             'collectables/saw/idle' : Animation(load_images('collectables/saw/idle'), img_dur=3, loop=True),
             'collectables/gate/idle' : Animation(load_images('collectables/gate/idle')),
-            'collectables/gate/drop' : Animation(load_images('collectables/gate/drop'), img_dur=6,),
+            'collectables/gate/drop' : Animation(load_images('collectables/gate/drop'), img_dur=4,),
             'collectables/lever/idle' : Animation(load_images('collectables/lever/idle')),
             'collectables/lever/collect' : Animation(load_images('collectables/lever/collect'), img_dur=6),
             'collectables/shade_gate/idle' : Animation(load_images('collectables/shade_gate/idle'), img_dur=5, loop=True),
@@ -166,9 +166,9 @@ class Game:
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
         self.sfx['grubfather_1'].set_volume(0.1)
-        self.sfx['ability_pickup'].set_volume(0.3)
-        self.sfx['ability_info'].set_volume(0.1)
-        self.sfx['dark_spell_get'].set_volume(0.5)
+        self.sfx['ability_pickup'].set_volume(0.35)
+        self.sfx['ability_info'].set_volume(0.2)
+        self.sfx['dark_spell_get'].set_volume(0.6)
         self.sfx['shiny_item'].set_volume(0.0)
         self.sfx['saw_loop'].set_volume(0.0)
         self.sfx['gate'].set_volume(0.15)
@@ -234,11 +234,12 @@ class Game:
 
         # Hud Init
         self.hud = []
-        self.hud.append(HudElement(self, self.assets['guide_move'] ,(4, 4)))
-        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(64, 4)))
-        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180, scale=1.0))
         self.score_text = pygame.font.Font('freesansbold.ttf', 30)
         self.score_text_back = pygame.font.Font('freesansbold.ttf', 31)
+
+        self.hud.append(HudElement(self, self.assets['guide_move'] ,(8, 0)))
+        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(64, 0)))
+        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180, scale=1.0))
 
         # Camera Init
         self.scroll = [0, 0]
@@ -288,6 +289,8 @@ class Game:
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:    # SHIFT is dash
                         self.player.dash()
+                    if event.key == pygame.K_G:                                         # G is ping nearest grub
+                        self.player.grub_pointer()
                     if event.key == pygame.K_v:                                         # V is ALL dev unlock
                         self.player.has_dash = True
                         self.player.has_claw = True
@@ -480,7 +483,7 @@ class Game:
             for hud in self.hud.copy():
                 hud.update()
                 hud.render(self.display)
-            if self.playing_timer == 340:
+            if self.playing_timer == 400:
                 self.hud.append(HudElement(self, self.assets['guide_look'] ,(4, 4)))
 
 
