@@ -345,7 +345,6 @@ class Game:
 
                 # Controller axis motion
                 if event.type == pygame.JOYAXISMOTION:
-                    print(event)
                     if event.axis == 0:                                     # Horizontal joystick movement on only left joystick
                         if event.value < -0.65:                              # Left joystick movement
                             self.player_movement[0] = True
@@ -376,7 +375,6 @@ class Game:
 
                     if event.axis == 4 or event.axis == 5:                  # Both triggers dash detection
                         if event.value > -0.5 and not self.holding_trigger:
-                            print(event.value)
                             self.player.dash()
                             self.holding_trigger = True
                         if event.value < -0.5:

@@ -365,12 +365,12 @@ class Collectable(PhysicsEntity):
             
 
             # Happy grub noises
-            if self.collect_timer == 40:
+            if self.collect_timer == 50:
                 rand = random.randint(1, 3)
                 self.game.sfx['grub_free_' + str(rand)].play()
 
             # Burrowing away
-            if self.collect_timer == 120:
+            if self.collect_timer == 130:
                 self.game.sfx['grub_burrow'].play()
 
         
