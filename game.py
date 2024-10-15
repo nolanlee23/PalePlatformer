@@ -61,6 +61,7 @@ class Game:
             'guide_dash' : load_image('hud/guide/guide_dash.png'),
             'guide_climb' : load_image('hud/guide/guide_climb.png'),
             'guide_fly' : load_image('hud/guide/guide_fly.png'),
+            'guide_cloak' : load_image('hud/guide/guide_cloak.png'),
             'grass' : load_images('tiles/grass'),
             'stone' : load_images('tiles/stone'),
             'decor' : load_images('tiles/decor'),
@@ -483,7 +484,7 @@ class Game:
                 hud.update()
                 hud.render(self.display)
             if self.playing_timer == 400:
-                self.hud.append(HudElement(self, self.assets['guide_look'] ,(4, 4)))
+                self.hud.append(HudElement(self, self.assets['guide_look'] ,(8, 10)))
 
 
             # Render display onto final screen (upscaling)

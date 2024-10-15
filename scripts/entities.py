@@ -417,22 +417,22 @@ class Collectable(PhysicsEntity):
             if self.type == 'collectables/dash_pickup':
                 self.game.player.has_dash = True
                 particle_type = 'long_dash_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(4, 4)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(8, 10)))
         
             if self.type == 'collectables/claw_pickup':
                 self.game.player.has_claw = True
                 particle_type ='long_dash_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_climb'] ,(4, 0)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_climb'] ,(8, 0)))
 
             if self.type == 'collectables/wings_pickup':
                 self.game.player.has_wings = True
                 particle_type = 'long_slide_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_fly'] ,(4, 0)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_fly'] ,(8, 0)))
 
             if self.type == 'collectables/cloak_pickup':
                 self.game.player.has_cloak = True
                 particle_type = 'long_cloak_particle'
-                self.game.hud.append(HudElement(self.game, self.game.assets['guide_dash'] ,(4, 4)))
+                self.game.hud.append(HudElement(self.game, self.game.assets['guide_cloak'] ,(8, 10)))
                 self.game.sfx['dark_spell_get'].play()
                 
 

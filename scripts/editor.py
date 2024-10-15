@@ -151,7 +151,7 @@ class Editor:
                         self.shifting = False
 
             # Draw background
-            self.display.fill((10, 50, 80))
+            self.display.fill((10, 30, 50))
 
             # Camera control
             self.scroll[0] += (self.movement[1] - self.movement[0]) * CAMERA_SPEED
