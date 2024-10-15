@@ -289,7 +289,7 @@ class Game:
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:    # SHIFT is dash
                         self.player.dash()
-                    if event.key == pygame.K_G:                                         # G is ping nearest grub
+                    if event.key == pygame.K_g:                                         # G is ping nearest grub
                         self.player.grub_pointer()
                     if event.key == pygame.K_v:                                         # V is ALL dev unlock
                         self.player.has_dash = True
@@ -305,10 +305,9 @@ class Game:
                         self.player.has_wings = True
                     if event.key == pygame.K_0:                                         # 0 is unlock cloak
                         self.player.has_cloak = True
-                    if event.key == pygame.K_MINUS:                                     # Minus is anit-softlock
-                        self.damage_fade_out = True
-                    if event.key == pygame.K_BACKSPACE:                                  # Backspace is set spawn to world spawn
+                    if event.key == pygame.K_BACKSPACE:                                  # Backspace is antisoftlock
                         self.player_spawn_pos = self.world_spawn_pos.copy()
+                        self.damage_fade_out = True
 
                 # Keystroke up
                 if event.type == pygame.KEYUP:
