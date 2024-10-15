@@ -5,10 +5,10 @@ Lots of credit to @DaFluffyPotato on YT, he made most of the base framework (gam
 https://youtu.be/2gABYM5M0ww?si=F0wO-cN_WyHuD68J   
     
 Help save all of the grubs while exploring the forgotten labrynth deep underground!    
-Expand your toolset by collecting movement powerups to unlock new areas!    
+Expand your toolset by collecting new movement powerups to unlock new areas!    
     
 Controls:   
-A, D or Left, Right Arrow = Movement   
-W, S or Up, Down Arrow = Look   
-SPACE = Jump, (Wall jump, Double jump)   
-LSHIFT or RSHIFT = (Dash)   
+A, D or Left, Right Arrow | Left Joystick  =  Movement   
+W, S or Up, Down Arrow | Left Joystick  =  Look   
+SPACE | (A) or (B)  =  Jump, Wall jump, Double jump  
+LSHIFT or RSHIFT  | (X) or (Y) or RB/LB or LT/RT =  Dash, Cloak  
