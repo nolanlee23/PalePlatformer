@@ -391,18 +391,19 @@ class Game:
 
             # Freeze player when fading in or out from death warp
             if self.damage_fade_out:
+                
 
                 # First frame of fade out
                 if self.blackout_alpha > 0 and self.blackout_alpha <= FADE_SPEED :
+                    self.player_movement = [False, False]
                     self.player.hitstun_animation()
 
                 # Fading out
                 if self.blackout_alpha < 255:
                     self.blackout_alpha = min(255, self.blackout_alpha + FADE_SPEED)
-                    self.player_movement = [False, False]
 
-                else:
                 # Black screen
+                else:
                     self.camera_smooth = 1
                     self.player.death_warp()
                     self.damage_fade_out = False
@@ -418,17 +419,16 @@ class Game:
                 if self.blackout_alpha < 70:
                     self.player.set_action('idle') 
 
-                if self.blackout_alpha > 0:
-
                 # Fading in
+                if self.blackout_alpha > 0:
                     self.blackout_alpha = max(0, self.blackout_alpha - FADE_SPEED * 1.5)
                     self.player.velocity = [0, 0]
-                else:
 
                 # Full opacity
+                else:
                     self.camera_smooth = CAMERA_SMOOTH
                     self.player.can_move = True
-                    self.player.air_time = 0
+                    self.player.air_time = -2
                     self.player.set_action('idle')
                     self.damage_fade_in = False
 

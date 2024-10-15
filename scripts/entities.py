@@ -29,7 +29,7 @@ COLLECTABLE_SIZES = {
     'slippery_rock' : (8, 32),
 }
 COLLECTABLE_OFFSETS = {
-    'respawn' : (0, 2),
+    'respawn' : (0, 1),
     'grub' : (0, 11),
     'saw' : (0, 0),
     'gate' : (0, 0),
@@ -381,7 +381,7 @@ class Collectable(PhysicsEntity):
         """
         # Set spawn point on checkpoint
         if self.type == 'collectables/respawn':
-            self.game.player_spawn_pos = list(self.pos)
+            self.game.player_spawn_pos = self.pos.copy()
 
         # Start save animation
         if self.type == 'collectables/grub':
@@ -521,8 +521,6 @@ class Player(PhysicsEntity):
         #### MOVEMENT ###
 
 
-    
-
         # Override player movement for a short period after wall jump
         if self.wall_jump_timer < WALL_JUMP_TICK_CUTOFF:
             if self.wall_jump_direction == True:        # Left wall
@@ -557,7 +555,8 @@ class Player(PhysicsEntity):
     
 
         # Update collision and position based on movement
-        super().update(tilemap, movement=movement)
+        if self.can_move:
+            super().update(tilemap, movement=movement)
 
         # Check for entity collision from left or right
         self.entity_collision = False
@@ -642,9 +641,9 @@ class Player(PhysicsEntity):
         self.looking_up = False
         
 
+        # If can't move, don't update animation
         if not self.can_move:
-            self.set_action('kneel')
-
+            pass
         # WALL SLIDE, reduce Y ďpeed if touching wall
         elif (self.collisions['right'] or self.collisions['left']) and self.air_time > AIRTIME_BUFFER and self.velocity[1] > 0 and self.has_claw and not self.entity_collision and self.dash_cooldown_timer > 1:
 
@@ -897,7 +896,6 @@ class Player(PhysicsEntity):
         self.game.sfx['run_stone'].stop()
         self.game.sfx['wall_slide'].stop()
         self.game.sfx['hitstun'].play()
-        self.can_update = False
         self.can_move = False
         self.falling_time = 0
 
