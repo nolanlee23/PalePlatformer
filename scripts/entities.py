@@ -49,7 +49,7 @@ SAW_NOISE_DIST = 80
 
 # Player physics constants
 MOVEMENT_X_SCALE = 1.8
-JUMP_Y_VEL = -5.0
+JUMP_Y_VEL = -5.05
 NUM_AIR_JUMPS = 1
 AIR_JUMP_Y_VEL = -4.6
 NUM_AIR_DASHES = 1

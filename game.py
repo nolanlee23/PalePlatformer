@@ -345,7 +345,7 @@ class Game:
 
             # Determine depths background opacity
             if self.player.pos[0] < DEPTHS_X:
-                self.depths_background_alpha = min(90, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.1)
+                self.depths_background_alpha = min(80, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.15)
 
                 # If in depths in both X and Y,
                 if self.player.pos[1] > DEPTHS_Y:
@@ -369,9 +369,16 @@ class Game:
             # Determine normal background opacity
             if self.player.pos[1] > DEPTHS_Y:
                 self.background_alpha = max(0, 230 - (self.player.pos[1] - DEPTHS_Y) * 1.5)
-                self.darken_alpha = min(120, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.2)
             else:
                 self.background_alpha = 230
+                self.darken_alpha = 0
+
+            # Determine darkening foreground opacity
+            if self.player.pos[1] > DEPTHS_Y and not self.player.has_cloak:
+                self.darken_alpha = min(120, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.2)
+            elif self.player.pos[1] > DEPTHS_Y and self.player.has_cloak:
+                self.darken_alpha = min(110, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.1)
+            else:
                 self.darken_alpha = 0
             
             # Draw normal background
