@@ -27,9 +27,15 @@ class Game:
 
     def __init__(self):
 
+        # Initialize pygame
         pygame.init()
-        pygame.mixer.init()
         self.clock = pygame.time.Clock()
+        pygame.mixer.init()
+
+        # Initialize controller
+        pygame.joystick.init()
+        self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+        self.holding_trigger = False
 
         # full size screen used for window (container)
         self.screen = pygame.display.set_mode(SCREEN_SIZE, flags=pygame.SCALED, vsync=1)
@@ -306,7 +312,7 @@ class Game:
                         self.player.has_wings = True
                     if event.key == pygame.K_0:                                         # 0 is unlock cloak
                         self.player.has_cloak = True
-                    if event.key == pygame.K_BACKSPACE:                                  # Backspace is antisoftlock
+                    if event.key == pygame.K_BACKSPACE:                                 # Backspace is antisoftlock
                         self.player_spawn_pos = self.world_spawn_pos.copy()
                         self.damage_fade_out = True
 
@@ -324,6 +330,57 @@ class Game:
                         self.player.holding_down = False
                     if event.key == pygame.K_SPACE:
                         self.player.jump_release()                                      # Jump release for variable jump height
+
+                # Controller button down
+                if event.type == pygame.JOYBUTTONDOWN:
+                    if event.button == 0 or event.button == 1:                                              # A or B is JUMP
+                        self.player.jump()
+                    if event.button == 2 or event.button == 3 or event.button == 9 or event.button == 10:   # X or Y or LB or RB is DASH
+                        self.player.dash()
+
+                # Controller button up
+                if event.type == pygame.JOYBUTTONUP:
+                    if event.button == 0 or event.button == 1:                                        
+                        self.player.jump_release() 
+
+                # Controller axis motion
+                if event.type == pygame.JOYAXISMOTION:
+                    print(event)
+                    if event.axis == 0:                                     # Horizontal joystick movement on only left joystick
+                        if event.value < -0.65:                              # Left joystick movement
+                            self.player_movement[0] = True
+                            self.player.holding_left = True
+                            self.player_movement[1] = False
+                            self.player.holding_right = False
+                        if event.value > 0.65:                               # Right joystick movement
+                            self.player_movement[0] = False
+                            self.player.holding_left = False
+                            self.player_movement[1] = True
+                            self.player.holding_right = True
+                        if event.value > -0.65 and event.value < 0.65:        # Reset movement in the middle
+                            self.player_movement[0] = False
+                            self.player.holding_left = False
+                            self.player_movement[1] = False
+                            self.player.holding_right = False
+
+                    if event.axis == 1 or event.axis == 3:                  # Vertical joystick detection on both joysticks
+                        if event.value < -0.3:                              # Up joystick movement
+                            self.player.holding_down = False
+                            self.player.holding_up = True
+                        if event.value > 0.3:                               # Down joystick movement
+                            self.player.holding_down = True
+                            self.player.holding_up = False
+                        if event.value > -0.3 and event.value < 0.3:        # Reset in the middle
+                            self.player.holding_down = False
+                            self.player.holding_up = False
+
+                    if event.axis == 4 or event.axis == 5:                  # Both triggers dash detection
+                        if event.value > -0.5 and not self.holding_trigger:
+                            print(event.value)
+                            self.player.dash()
+                            self.holding_trigger = True
+                        if event.value < -0.5:
+                            self.holding_trigger = False
 
             # Fix movement not being updated 
             if not self.player_movement[0] and self.player.holding_left:
