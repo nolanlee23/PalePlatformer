@@ -37,6 +37,7 @@ class Editor:
             'large_decor' : load_images('tiles/large_decor'),
             'spawners' : load_images('tiles/spawners'),
             'spikes' : load_images('tiles/spikes'),
+            'enemies' : load_images('tiles/enemies'),
         }
 
         # World Init

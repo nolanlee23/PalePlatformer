@@ -167,6 +167,7 @@ class Player(PhysicsEntity):
             self.game.damage_fade_out = True
 
         # Update control variables
+        self.intangibility_timer -= 1
         self.air_time += 1
         self.wall_jump_timer += 1
         self.dash_cooldown_timer += 1
@@ -339,6 +340,12 @@ class Player(PhysicsEntity):
                         self.sliding_time = 0
                         self.wall_slide_timer = WALL_JUMP_BUFFER
 
+        # Become translucent when intangibile
+        if self.intangibility_timer <= 1:
+            self.opacity = 230
+        else:
+            self.opacity = 255
+
 
         # Add falling timer for hard landing sound effects
         if self.velocity[1] > 0:
@@ -434,28 +441,31 @@ class Player(PhysicsEntity):
 
     def dash(self):
         """
-        Dash by starting timer and taking over player movement until timer reaches zero
+        Dash by starting timer and taking over player movement ( fast x, no y ) until timer reaches zero
         Return TRUE if sucessful dash
         """
         if not self.can_move:
             return False
         
-        # Has dashes, not currently dashing, not wall jumped in ~10 frames, not dashed in ~20 frames
-        if self.has_dash and self.dashes and not self.dash_timer and self.wall_jump_timer > WALL_JUMP_TICK_CUTOFF + WALL_JUMP_TICK_STALL and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
+        # Has dashes, not currently dashing, not dashed in ~20 frames
+        if self.has_dash and self.dashes and not self.dash_timer and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
+
+            # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
+            if (self.sliding_time > AIRTIME_BUFFER + 2 and self.wall_slide_right and self.wall_jump_timer > 10) or (self.sliding_time <= AIRTIME_BUFFER + 2 and self.flip and self.wall_jump_timer > 10) or (self.wall_jump_timer <= 10 and self.holding_left):
+                self.dash_timer = -DASH_TICK
+                dash_particle_vel = (DASH_PARTICLE_VEL, 0)
+            elif (self.sliding_time > AIRTIME_BUFFER + 2 and not self.wall_slide_right and self.wall_jump_timer > 10) or (self.sliding_time <= AIRTIME_BUFFER + 2 and not self.flip and self.wall_jump_timer > 10)  or (self.wall_jump_timer <= 10 and self.holding_right):
+                self.dash_timer = DASH_TICK
+                dash_particle_vel = (-DASH_PARTICLE_VEL, 0)
+            else:
+                return False
             
             # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
 
-            # Start dash and dash cooldown timers, sign of dash timer determines direction of dash (particles go opposite direction)
-            if (self.sliding_time > AIRTIME_BUFFER + 2 and self.wall_slide_right) or (self.sliding_time <= AIRTIME_BUFFER + 2 and self.flip):
-                self.dash_timer = -DASH_TICK
-                dash_particle_vel = (DASH_PARTICLE_VEL, 0)
-            else:
-                self.dash_timer = DASH_TICK
-                dash_particle_vel = (-DASH_PARTICLE_VEL, 0)
-            
             # Cancel wall slide
             self.sliding_time = 0
+            self.wall_slide_timer = WALL_JUMP_BUFFER
             self.dash_cooldown_timer = -DASH_TICK
             self.velocity[1] = 0
 

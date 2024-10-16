@@ -1,7 +1,7 @@
 import pygame
 import json
 
-# 5x5 Area centered at (0,0)
+# 5x5 Area centered at (0,0) for collision checks
 NEIGHBOR_TILES = [(-2,-2), (-2,-1), (-2,0), (-2,1), (-2,2),
                 (-1, -2), (-1,-1), (-1,0), (-1,1), (-1,2), 
                 (0,-2), (0,-1), (0,0), (0,1), (0,2), 
@@ -111,9 +111,8 @@ class Tilemap:
     
     def tile_below(self, pos):
         """
-        Helper method for determining properties of tile below if collisions[down] 
+        Helper method for determining properties of tile below if collisions[down] for spike detection
         """
-
         # Convert pixel position to grid position with integer division
         below_tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))
 
@@ -121,6 +120,16 @@ class Tilemap:
         if below_tile in self.tilemap:
             return self.tilemap[below_tile]
         return None
+    
+    def tile_solid(self, pos):
+        """
+        Returns the tile at given pos if solid
+        Helper method for enemy movement back and forth, avoiding falling off an edge by detecting block in front
+        """
+        tile_loc = str(int(pos[0] // self.tile_size)) + ';' + str(int(pos[1] // self.tile_size))
+        if tile_loc in self.tilemap:
+            if self.tilemap[tile_loc]['type'] in PHYSICS_TILES:
+                return self.tilemap[tile_loc]
     
     def autotile(self):
         """
