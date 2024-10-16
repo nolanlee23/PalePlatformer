@@ -15,7 +15,7 @@ RENDER_SCALE = 4.0
 TICK_RATE = 60
 PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (8, 14)
-CAMERA_SMOOTH = 8
+CAMERA_SMOOTH = 8.1
 LOOK_OFFSET = 6.5
 LOOK_THRESHOLD = 20
 FADE_SPEED = 8
@@ -68,6 +68,7 @@ class Game:
             'guide_climb' : load_image('hud/guide/guide_climb.png'),
             'guide_fly' : load_image('hud/guide/guide_fly.png'),
             'guide_cloak' : load_image('hud/guide/guide_cloak.png'),
+            'guide_grub' : load_image('hud/guide/guide_grub.png'),
             'grass' : load_images('tiles/grass'),
             'stone' : load_images('tiles/stone'),
             'decor' : load_images('tiles/decor'),
@@ -89,12 +90,13 @@ class Game:
             'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=2),
             'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=8),
             'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
-            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=4),
+            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=5),
             'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=10),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
             'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=7),
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3),
+            'particle/grub_particle' : Animation(load_images('particles/grub_particle'), img_dur=10),
             'collectables/respawn/idle' : Animation(load_images('collectables/respawn/idle')),
             'collectables/grub/idle' : Animation(load_images('collectables/grub/idle')),
             'collectables/grub/alert' : Animation(load_images('collectables/grub/alert')),
@@ -281,7 +283,7 @@ class Game:
                     sys.exit()
 
                 # Keystroke down
-                if event.type == pygame.KEYDOWN and self.player.can_move:
+                if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_a or event.key == pygame.K_LEFT:           # A is left
                         self.player_movement[0] = True
                         self.player.holding_left = True
@@ -296,13 +298,14 @@ class Game:
                         self.player.jump()
                     if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:    # SHIFT is dash
                         self.player.dash()
-                    if event.key == pygame.K_g:                                         # G is ping nearest grub
+                    if event.key == pygame.K_f and self.player.has_grub_finder:         # F is ping nearest grub
                         self.player.grub_pointer()
                     if event.key == pygame.K_v:                                         # V is ALL dev unlock
                         self.player.has_dash = True
                         self.player.has_claw = True
                         self.player.has_wings = True
                         self.player.has_cloak = True
+                        self.player.has_grub_finder = True
                         self.sfx['grubfather_1'].play()
                     if event.key == pygame.K_7:                                         # 7 is unlock dash
                         self.player.has_dash = True
@@ -335,8 +338,12 @@ class Game:
                 if event.type == pygame.JOYBUTTONDOWN:
                     if event.button == 0 or event.button == 1:                                              # A or B is JUMP
                         self.player.jump()
-                    if event.button == 2 or event.button == 3 or event.button == 9 or event.button == 10:   # X or Y or LB or RB is DASH
+                    if event.button == 2 or event.button == 3 or event.button == 10:   # X or Y or RB is DASH
                         self.player.dash()
+                    if event.button == 11 or event.button == 12 or event.button == 13 or event.button == 14 or event.button == 9: # All DPAD or LB is Grub finder
+                        if self.player.has_grub_finder:
+                            self.player.grub_pointer()
+
 
                 # Controller button up
                 if event.type == pygame.JOYBUTTONUP:
@@ -451,7 +458,6 @@ class Game:
 
                 # First frame of fade out
                 if self.blackout_alpha > 0 and self.blackout_alpha <= FADE_SPEED :
-                    self.player_movement = [False, False]
                     self.player.hitstun_animation()
 
                 # Fading out
@@ -538,8 +544,13 @@ class Game:
             for hud in self.hud.copy():
                 hud.update()
                 hud.render(self.display)
+            # Display look guide after first guide fades
             if self.playing_timer == 400:
                 self.hud.append(HudElement(self, self.assets['guide_look'] ,(8, 10)))
+            # Display grub finder guide after reaching a threshold of grubs collected
+            if self.grubs_collected >= Collectable.total_grubs / 3 and not self.player.has_grub_finder:
+                self.player.has_grub_finder = True
+                self.hud.append(HudElement(self, self.assets['guide_grub'] ,(0, 6)))
 
 
             # Render display onto final screen (upscaling)

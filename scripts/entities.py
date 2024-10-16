@@ -59,8 +59,8 @@ LOW_GRAV_THRESHOLD = 0.6
 LOW_GRAV_DIVISOR = 1.3
 DASH_X_SCALE = 4
 DASH_TICK = 14
-DASH_COOLDOWN_TICK = 26
-WALL_SLIDE_VEL = 1.35
+DASH_COOLDOWN_TICK = 22
+WALL_SLIDE_VEL = 1.33
 WALL_JUMP_Y = -4.6
 WALL_JUMP_TICK_CUTOFF = 8
 WALL_JUMP_TICK_STALL = 2
@@ -70,7 +70,7 @@ WALL_JUMP_BUFFER = 10
 PLAYER_ANIM_OFFSET = (-3, -8)
 DASH_ANIM_OFFSET = (-9, -8)
 RUN_PARTICLE_DELAY = 10
-DASH_PARTICLE_VEL = 2
+DASH_PARTICLE_VEL = 1.5
 DASH_TRAIL_VARIANCE = 0.3
 NUM_HITSTUN_PARTICLES = 80
 HITSTUN_PARTICLE_VEL = 1
@@ -370,7 +370,7 @@ class Collectable(PhysicsEntity):
                 self.game.sfx['grub_free_' + str(rand)].play()
 
             # Burrowing away
-            if self.collect_timer == 130:
+            if self.collect_timer == 140:
                 self.game.sfx['grub_burrow'].play()
 
         
@@ -475,6 +475,9 @@ class Player(PhysicsEntity):
         self.can_update = True
         self.can_move = True
         self.death_counter = 0
+        self.holding_left = False
+        self.holding_right = False
+        self.has_grub_finder = False
 
         # Jump and wall jump variables
         self.has_wings = False
@@ -507,9 +510,6 @@ class Player(PhysicsEntity):
         self.looking_up = False
         self.holding_down = False
         self.looking_down = False
-
-        self.holding_left = False
-        self.holding_right = False
         
 
     def update(self, tilemap, movement=(0, 0)):
@@ -544,9 +544,6 @@ class Player(PhysicsEntity):
         # Suspend gravity completely while dashing
         if abs(self.dash_timer) > 0:
             self.gravity = 0
-            self.velocity[1] = 0
-            movement = (movement[0], 0)
-
         # Minimize gravity at the peak of player jump to add precision
         elif self.air_time > AIRTIME_BUFFER and self.velocity[1] > -LOW_GRAV_THRESHOLD and self.velocity[1] < LOW_GRAV_THRESHOLD:
             self.gravity = GRAVITY_CONST / LOW_GRAV_DIVISOR
@@ -785,6 +782,9 @@ class Player(PhysicsEntity):
         Check if player is eligible to jump, perform jump and wall jump
         Return TRUE if player has sucessfully jumped
         """
+        if not self.can_move:
+            return False
+        
         # Wall jump if wall sliding, has claw, and has not wall jumped in ~10 frames
         if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw and self.wall_jump_timer > WALL_JUMP_BUFFER + 4:
             self.game.sfx['wall_jump'].play()
@@ -802,7 +802,7 @@ class Player(PhysicsEntity):
                     self.game.particles.append(Particle(self.game, 'run_particle', particle_loc, velocity=(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.3))))
             return True
         # Normal and double jump if grounded or not
-        elif self.jumps and not self.dash_timer:
+        elif self.jumps and abs(self.dash_timer) < AIRTIME_BUFFER:
             if self.air_time > AIRTIME_BUFFER * 2: 
                 # Mid Air jump             
                 if self.has_wings:
@@ -850,7 +850,12 @@ class Player(PhysicsEntity):
         Dash by starting timer and taking over player movement until timer reaches zero
         Return TRUE if sucessful dash
         """
-        if self.has_dash and not self.dash_timer and self.dashes and self.wall_jump_timer > WALL_JUMP_TICK_CUTOFF + WALL_JUMP_TICK_STALL and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
+        if not self.can_move:
+            return False
+        
+        # Has dashes, not currently dashing, not wall jumped in ~10 frames, not dashed in ~20 frames
+        if self.has_dash and self.dashes and not self.dash_timer and self.wall_jump_timer > WALL_JUMP_TICK_CUTOFF + WALL_JUMP_TICK_STALL and self.dash_cooldown_timer > DASH_COOLDOWN_TICK:
+            
             # Decrement dashes counter
             self.dashes = min(0, self.dashes - 1)
 
@@ -865,6 +870,7 @@ class Player(PhysicsEntity):
             # Cancel wall slide
             self.sliding_time = 0
             self.dash_cooldown_timer = -DASH_TICK
+            self.velocity[1] = 0
 
             # Cloak or dash based on cooldown timer
             if self.has_cloak:
@@ -923,4 +929,32 @@ class Player(PhysicsEntity):
         """
         Display particles directing player towards nearest grub
         """
-        pass
+        if not self.can_move:
+            return False
+        
+        closest_grub = None
+        closest_grub_dist = None
+        player_rect = self.entity_rect()
+
+        # Loop through all entities and examine all uncollected grubs
+        for entity in self.game.collectables:
+            if entity.type == 'collectables/grub' and entity.collect_timer == 0:
+
+                # Assign first in the list
+                if closest_grub is None:
+                    closest_grub = entity
+                    closest_grub_dist = math.sqrt((entity.rect.centerx - player_rect.centerx)**2 + (entity.rect.centery - player_rect.centery)**2)
+                    continue
+                
+                # Compare current to closest, assign if curr is closer
+                curr_dist = math.sqrt((entity.rect.centerx - player_rect.centerx)**2 + (entity.rect.centery - player_rect.centery)**2)
+                if curr_dist < closest_grub_dist:
+                    closest_grub = entity
+                    closest_grub_dist = curr_dist
+        
+        # Normalize vector between player and closest grub
+        pointing_vector = pygame.Vector2(closest_grub.rect.centerx - player_rect.centerx, closest_grub.rect.centery - player_rect.centery)
+        pointing_vector.normalize_ip()
+
+        for i in range(3):
+            self.game.particles.append(Particle(self.game, 'grub_particle', player_rect.center, pointing_vector * (i + 1) * 0.75, fade_out=5, frame=4 - i))
