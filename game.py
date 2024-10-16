@@ -88,12 +88,12 @@ class Game:
             'player/kneel' : Animation(load_images('player/kneel')),
             'player/float' : Animation(load_images('player/float')),
             'particle/dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=2),
-            'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=8),
+            'particle/long_dash_particle' : Animation(load_images('particles/dash_particle'), img_dur=11),
             'particle/circle_particle' : Animation(load_images('particles/circle_particle'), img_dur=5),
-            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=5),
-            'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=10),
+            'particle/cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=6),
+            'particle/long_cloak_particle' : Animation(load_images('particles/cloak_particle'), img_dur=16),
             'particle/slide_particle' : Animation(load_images('particles/slide_particle'), img_dur=2),
-            'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=10),
+            'particle/long_slide_particle' : Animation(load_images('particles/long_slide_particle'), img_dur=12),
             'particle/run_particle' : Animation(load_images('particles/run_particle'), img_dur=7),
             'particle/wings_particle' : Animation(load_images('particles/wings_particle'), img_dur=3),
             'particle/grub_particle' : Animation(load_images('particles/grub_particle'), img_dur=10),
@@ -174,7 +174,7 @@ class Game:
         self.sfx['grub_sad_1'].set_volume(0.1)
         self.sfx['grub_sad_idle_1'].set_volume(0.2)
         self.sfx['grub_sad_idle_2'].set_volume(0.2)
-        self.sfx['grubfather_1'].set_volume(0.1)
+        self.sfx['grubfather_1'].set_volume(0.015)
         self.sfx['ability_pickup'].set_volume(0.35)
         self.sfx['ability_info'].set_volume(0.2)
         self.sfx['dark_spell_get'].set_volume(0.6)
@@ -277,8 +277,9 @@ class Game:
 
                 # Exit the application
                 if event.type == pygame.QUIT:
-                    print('Death Count: ' + str(self.player.death_counter))
-                    print('Playing Time: ' + str(self.playing_timer // TICK_RATE) + ' seconds')
+                    print('Grub Count: ' + str(self.grubs_collected) + ' / ' + str(Collectable.total_grubs) + ' grubs')
+                    print('Death Count: ' + str(self.player.death_counter) + ' deaths')
+                    print('Playing Time: ' + str(self.playing_timer // TICK_RATE // TICK_RATE) + ' minutes and ' + str(self.playing_timer // TICK_RATE % TICK_RATE) + ' seconds')
                     pygame.quit()
                     sys.exit()
 

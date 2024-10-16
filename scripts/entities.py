@@ -275,7 +275,7 @@ class Collectable(PhysicsEntity):
             
             # Spawn waves of particles
             if self.dist_to_player < 250 and random.randint(0, 1) == 1:
-                self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=2))
+                self.game.particles.append(Particle(self.game, 'long_cloak_particle', (self.rect.centerx + random.uniform(-2, 2), self.rect.centery + random.uniform(-8, 8)), velocity=(random.uniform(-0.4,0.4), random.uniform(-0.05,0.05)), fade_out=2, frame=random.randint(1,4)))
 
 
         # Drop nearest gate and play sfx
@@ -660,7 +660,7 @@ class Player(PhysicsEntity):
             if self.sliding_time == 1:
                 self.wall_slide_x_pos = self.pos[0]
 
-            self.dash_timer /= 2
+            self.dash_timer /= 3
             self.velocity[1] = min(self.velocity[1], WALL_SLIDE_VEL)
 
             self.set_action('wall_slide') 
@@ -956,5 +956,6 @@ class Player(PhysicsEntity):
         pointing_vector = pygame.Vector2(closest_grub.rect.centerx - player_rect.centerx, closest_grub.rect.centery - player_rect.centery)
         pointing_vector.normalize_ip()
 
+        self.game.sfx['grubfather_1'].play()
         for i in range(3):
             self.game.particles.append(Particle(self.game, 'grub_particle', player_rect.center, pointing_vector * (i + 1) * 0.75, fade_out=5, frame=4 - i))
