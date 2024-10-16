@@ -7,8 +7,11 @@ https://youtu.be/2gABYM5M0ww?si=F0wO-cN_WyHuD68J
 Help save all of the grubs while exploring the forgotten labrynth deep underground!    
 Expand your toolset by collecting new movement powerups to unlock new areas!    
     
-Controls:   
-A, D or Left, Right Arrow | Left Joystick  =  Movement   
-W, S or Up, Down Arrow | Left Joystick  =  Look   
-SPACE | (A) or (B)  =  Jump, Wall jump, Double jump  
-LSHIFT or RSHIFT  | (X) or (Y) or RB/LB or LT/RT =  Dash, Cloak  
+Controls:     
+A, D or Left, Right Arrow | Left Joystick  =  Movement    
+W, S or Up, Down Arrow | Left Joystick  =  Look    
+SPACE | (A) or (B)  =  Jump      
+When unlocked ingame:      
+SPACE | (A) or (B) = Wall jump, Double jump    
+LSHIFT or RSHIFT  | (X) or (Y) or RB/LB or LT/RT =  Dash, Cloak     
+F | Any D-PAD = Grub Finder
