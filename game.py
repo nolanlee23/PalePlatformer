@@ -2,9 +2,10 @@ import pygame
 import sys
 import random
 
-from scripts.entities import PhysicsEntity, Collectable, Player
+from scripts.player import Player
 from scripts.utils import load_image, load_images, Animation
 from scripts.tilemap import Tilemap
+from scripts.entities import Collectable
 from scripts.particle import Particle
 from scripts.hud import HudElement
 
