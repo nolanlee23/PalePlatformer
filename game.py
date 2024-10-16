@@ -410,9 +410,12 @@ class Game:
             # Draw blank black background
             self.display.fill((0, 0, 0))
 
-            # Determine depths background opacity
+            # Determine depths background opacity ( messy AF )
             if self.player.pos[0] < DEPTHS_X:
-                self.depths_background_alpha = min(80, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.15)
+                if self.player.has_cloak:
+                    self.depths_background_alpha = min(80, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.15)
+                else:
+                    self.depths_background_alpha = 0
 
                 # If in depths in both X and Y,
                 if self.player.pos[1] > DEPTHS_Y:
