@@ -381,6 +381,7 @@ class Player(PhysicsEntity):
         
         # Wall jump if wall sliding, has claw, and has not wall jumped in ~10 frames
         if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw and self.wall_jump_timer > WALL_JUMP_BUFFER + 4:
+            self.game.sfx['wall_slide'].stop()
             self.game.sfx['wall_jump'].play()
             if not self.wall_slide_right:         # Off of left wall
                 self.wall_jump_direction = True

@@ -54,7 +54,7 @@ CRAWLER_NOISE_DIST = 100
 
 class PhysicsEntity:
 
-    def __init__(self, game, e_type, pos, size, scale=1.0, opacity=255):
+    def __init__(self, game, e_type, pos, size, scale=1.0, opacity=255, vert_flip=False):
         # General info and physics
         self.game = game
         self.type = e_type
@@ -71,6 +71,7 @@ class PhysicsEntity:
         self.action = ''
         self.anim_offset = (0, 0)
         self.flip = False
+        self.vert_flip = vert_flip
         self.set_action('idle')
         self.walking_on = 0                     # Material being walked on for sfx purposes
 
@@ -151,7 +152,7 @@ class PhysicsEntity:
         """
         Render entity onto surface taking flip and offset into account
         """
-        flipped_img = pygame.transform.flip(self.animation.img(), self.flip, False)
+        flipped_img = pygame.transform.flip(self.animation.img(), self.flip, self.vert_flip)
         scaled_img = pygame.transform.scale_by(flipped_img, self.scale)
         surf.blit(scaled_img, (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
 
@@ -438,14 +439,25 @@ class Enemy(PhysicsEntity):
     Physics entity subclass that handles enemy AI and animations
     """
 
-    def __init__(self, game, e_type, pos, size, scale=1.0):
+    def __init__(self, game, e_type, pos, size, scale=1.0, vert_flip=False, gravity=True):
         
-        super().__init__(game, 'enemies/' + e_type, pos, size, scale)
+        super().__init__(game, 'enemies/' + e_type, pos, size, scale, vert_flip=vert_flip)
         self.tilemap = self.game.tilemap
+        self.gravity = GRAVITY_CONST if gravity else 0
+        self.rect = self.entity_rect()
 
         self.idle_noise_timer = 0
 
+        # Determine if wall creeper is on left or right wall
+        if self.type == 'enemies/wall_creeper':
+            if self.tilemap.tile_solid((self.rect.centerx - 8, self.pos[1] + 4)):
+                self.flip = True
+                self.pos[0] = self.pos[0] + 0
+            else:
+                self.flip = False
+
     def update(self, movement=(0, 0)):
+
         
         self.idle_noise_timer += 1
         
@@ -456,6 +468,10 @@ class Enemy(PhysicsEntity):
         self.y_dist = self.rect.centery - self.player_rect.centery
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
+        # Avoid updating if player is no where near
+        if self.dist_to_player > 500:
+            return
+
         
         # Crawling enemy that walkes back and forth
         if self.type == 'enemies/crawlid':
@@ -465,30 +481,53 @@ class Enemy(PhysicsEntity):
                 self.flip = not self.flip
 
             # Move forward until there isn't a solid tile in front, then turn around
-            elif self.tilemap.tile_solid((self.rect.centerx + (-6 if self.flip else 6), self.pos[1] + 16)):
+            elif self.tilemap.tile_solid((self.rect.centerx + (-8 if self.flip else 8), self.pos[1] + 16)):
                 movement = (movement[0] - 0.6 if self.flip else 0.6, movement[1])
             else:
                 self.flip = not self.flip
 
-            # Damage player if too close, tangible, and not cloaking
-            if self.dist_to_player < self.size[1] and self.game.player.intangibility_timer < 0 and (self.game.player.cloak_timer == 0 or self.game.player.cloak_timer > DASH_TICK):
-                self.game.damage_fade_out = True
-            
              # Play crawling sound effect when close
             if self.dist_to_player < CRAWLER_NOISE_DIST * 1.5:
-                self.game.sfx['crawler'].set_volume(min(0.06, (CRAWLER_NOISE_DIST - self.dist_to_player) / (CRAWLER_NOISE_DIST)))
+                self.game.sfx['crawler'].set_volume(min(0.7, (CRAWLER_NOISE_DIST - self.dist_to_player) / (CRAWLER_NOISE_DIST)))
             if self.idle_noise_timer % 100 == 1 and self.dist_to_player < CRAWLER_NOISE_DIST * 1.4:
                     self.game.sfx['crawler'].play()
 
-            # Explode if cloaked into by player
-            if self.dist_to_player < self.size[1] and self.game.player.cloak_timer > 0 and self.game.player.cloak_timer <= DASH_TICK:
-                self.game.sfx['crawler'].stop()
-                self.game.sfx['shade_gate_repel'].play()
-                for i in range(30):
-                    self.game.particles.append(Particle(self.game, 'cloak_particle', self.rect.center, (random.uniform(-1, 1), random.uniform(-1, 1))))
-                self.game.enemies.remove(self)
-        
 
+        # Crawling enemy that slinks up and down walls
+        if self.type == 'enemies/wall_creeper':
+
+            # If bump into ceiling or wall, flip direction
+            if self.collisions['up'] or self.collisions['down']:
+                self.vert_flip = not self.vert_flip
+
+            # Move forward until there isn't a solid tile in front, then turn around
+            elif self.tilemap.tile_solid((self.rect.centerx + (-10 if self.flip else 10), self.rect.centery + (8 if self.vert_flip else -8))):
+                movement = (movement[0], movement[1] + 0.35 if self.vert_flip else -0.35)
+            else:
+                self.vert_flip = not self.vert_flip
+
+            # Play crawling sound effect when close
+            if self.dist_to_player < CRAWLER_NOISE_DIST * 1.5:
+                self.game.sfx['wall_creeper'].set_volume(min(1, (CRAWLER_NOISE_DIST - self.dist_to_player) / (CRAWLER_NOISE_DIST * 0.2)))
+            if self.idle_noise_timer % 100 == 1 and self.dist_to_player < CRAWLER_NOISE_DIST * 1.4:
+                    self.game.sfx['wall_creeper'].play()
+            
+
+        # Explode if touched by player while cloaked
+        if self.dist_to_player < min(self.size[0], self.size[1]) - 4 and self.game.player.cloak_timer > 2 and self.game.player.cloak_timer < DASH_TICK - 1:
+            self.game.sfx['crawler'].stop()
+            self.game.sfx['wall_creeper'].stop()
+            self.game.sfx['shade_gate_repel'].play()
+            for i in range(15):
+                self.game.particles.append(Particle(self.game, 'cloak_particle', self.rect.center, (random.uniform(-1, 1), random.uniform(-1, 1))))
+            self.game.enemies.remove(self)
+            return
+        
+        # Damage player if too close, tangible, and not cloaking
+        elif self.dist_to_player < min(self.size[0], self.size[1]) - 6 and self.game.player.intangibility_timer < 0 and (self.game.player.cloak_timer == 0 or self.game.player.cloak_timer > DASH_TICK):
+            self.game.damage_fade_out = True
+
+        # Update position based on movement
         super().update(self.game.tilemap, movement=movement)
 
     

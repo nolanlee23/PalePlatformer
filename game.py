@@ -114,6 +114,7 @@ class Game:
             'collectables/shade_gate/idle' : Animation(load_images('collectables/shade_gate/idle'), img_dur=5, loop=True),
             'collectables/slippery_rock/idle' : Animation(load_images('collectables/slippery_rock/idle')),
             'enemies/crawlid/idle' : Animation(load_images('enemies/crawlid/idle'), img_dur=5, loop=True),
+            'enemies/wall_creeper/idle' : Animation(load_images('enemies/wall_creeper/idle'), img_dur=5, loop=True),
         }
 
         # Load audio
@@ -152,6 +153,7 @@ class Game:
             'shade_gate' : pygame.mixer.Sound('sfx/shade_gate.wav'),
             'shade_gate_repel' : pygame.mixer.Sound('sfx/shade_gate_repel.wav'),
             'crawler' : pygame.mixer.Sound('sfx/crawler.wav'),
+            'wall_creeper' : pygame.mixer.Sound('sfx/wall_creeper.wav'),
         }
 
         # Initialize audio volume
@@ -187,7 +189,8 @@ class Game:
         self.sfx['lever'].set_volume(0.15)
         self.sfx['shade_gate'].set_volume(0.35)
         self.sfx['shade_gate_repel'].set_volume(0.3)
-        self.sfx['crawler'].set_volume(0.04)
+        self.sfx['crawler'].set_volume(0.05)
+        self.sfx['wall_creeper'].set_volume(0.05)
 
         
 
@@ -249,6 +252,8 @@ class Game:
         for enemy in self.tilemap.extract([('enemies', 0), ('enemies', 1), ('enemies', 2), ('enemies', 3)]):
             if enemy['variant'] == 0:
                 self.enemies.append(Enemy(self, 'crawlid', enemy['pos'], (24, 16)))
+            if enemy['variant'] == 1:
+                self.enemies.append(Enemy(self, 'wall_creeper', enemy['pos'], (12, 20), gravity=0, vert_flip=True))
 
         # Hud Init
         self.hud = []
@@ -532,14 +537,16 @@ class Game:
             if self.player.can_update and not self.player.can_move:
                 self.player.update(self.tilemap, (0, 0))
 
+            # Update and render enemies
+            for enemy in self.enemies.copy():
+                enemy.update()
+                enemy.render(self.display, offset=render_scroll)
+
             # Update and render collectables
             for collectable in self.collectables.copy():
                 collectable.update()
                 collectable.render(self.display, offset=render_scroll)
 
-            for enemy in self.enemies.copy():
-                enemy.update()
-                enemy.render(self.display, offset=render_scroll)
 
             # Render gradual depths fade
             self.darken_surf.set_alpha(self.darken_alpha)
