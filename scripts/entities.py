@@ -47,7 +47,7 @@ ALERT_COOLDOWN = 3
 SHINY_NOISE_DIST = 150
 NUM_PICKUP_PARTICLES = 80
 SAW_NOISE_DIST = 80
-DASH_TICK = 14
+DASH_TICK = 15
 
 # Enemy constants
 CRAWLER_NOISE_DIST = 100
@@ -450,7 +450,7 @@ class Enemy(PhysicsEntity):
 
         # Determine if wall creeper is on left or right wall
         if self.type == 'enemies/wall_creeper':
-            if self.tilemap.tile_solid((self.rect.centerx - 8, self.pos[1] + 4)):
+            if self.tilemap.tile_solid((self.rect.centerx - 10, self.pos[1] + 4)):
                 self.flip = True
                 self.pos[0] = self.pos[0] + 0
             else:
@@ -481,7 +481,7 @@ class Enemy(PhysicsEntity):
                 self.flip = not self.flip
 
             # Move forward until there isn't a solid tile in front, then turn around
-            elif self.tilemap.tile_solid((self.rect.centerx + (-8 if self.flip else 8), self.pos[1] + 16)):
+            elif self.tilemap.tile_solid((self.rect.centerx + (-10 if self.flip else 10), self.pos[1] + 16)):
                 movement = (movement[0] - 0.6 if self.flip else 0.6, movement[1])
             else:
                 self.flip = not self.flip
@@ -502,7 +502,7 @@ class Enemy(PhysicsEntity):
 
             # Move forward until there isn't a solid tile in front, then turn around
             elif self.tilemap.tile_solid((self.rect.centerx + (-10 if self.flip else 10), self.rect.centery + (8 if self.vert_flip else -8))):
-                movement = (movement[0], movement[1] + 0.35 if self.vert_flip else -0.35)
+                movement = (movement[0], movement[1] + 0.4 if self.vert_flip else -0.4)
             else:
                 self.vert_flip = not self.vert_flip
 

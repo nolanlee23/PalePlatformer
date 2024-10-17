@@ -113,7 +113,7 @@ class Game:
             'collectables/lever/collect' : Animation(load_images('collectables/lever/collect'), img_dur=6),
             'collectables/shade_gate/idle' : Animation(load_images('collectables/shade_gate/idle'), img_dur=5, loop=True),
             'collectables/slippery_rock/idle' : Animation(load_images('collectables/slippery_rock/idle')),
-            'enemies/crawlid/idle' : Animation(load_images('enemies/crawlid/idle'), img_dur=5, loop=True),
+            'enemies/crawlid/idle' : Animation(load_images('enemies/crawlid/idle'), img_dur=3, loop=True),
             'enemies/wall_creeper/idle' : Animation(load_images('enemies/wall_creeper/idle'), img_dur=5, loop=True),
         }
 
@@ -251,7 +251,7 @@ class Game:
         self.enemies = []
         for enemy in self.tilemap.extract([('enemies', 0), ('enemies', 1), ('enemies', 2), ('enemies', 3)]):
             if enemy['variant'] == 0:
-                self.enemies.append(Enemy(self, 'crawlid', enemy['pos'], (24, 16)))
+                self.enemies.append(Enemy(self, 'crawlid', enemy['pos'], (21, 15)))
             if enemy['variant'] == 1:
                 self.enemies.append(Enemy(self, 'wall_creeper', enemy['pos'], (12, 20), gravity=0, vert_flip=True))
 
