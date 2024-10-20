@@ -1,5 +1,6 @@
 import pygame
 import sys
+import datetime
 
 from utils import load_images
 from tilemap import Tilemap
@@ -125,9 +126,9 @@ class Editor:
                         self.ongrid = not self.ongrid
                     if event.key == pygame.K_t:         # T is autotile
                         self.tilemap.autotile()
-                    if event.key == pygame.K_RETURN:    # RETURN is save file
+                    if event.key == pygame.K_RETURN:    # RETURN (ENTER) is save file
                         self.tilemap.save('maps/' + str(self.level_select) + '.json')
-                        print('File saved')
+                        print('FILE SAVED to map ' + str(self.level_select) + ' on ' + datetime.datetime.now().strftime('%m/%d/%y at %I:%M:%S %p'))
                     if event.key == pygame.K_l:         # L is load file
                         try:
                             self.tilemap.load('maps/' + str(self.level_select) + '.json')

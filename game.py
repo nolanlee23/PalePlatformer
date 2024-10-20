@@ -18,7 +18,7 @@ PLAYER_START_POS = (0, 0)
 PLAYER_SIZE = (8, 14)
 CAMERA_SMOOTH = 8.1
 LOOK_OFFSET = 6.5
-LOOK_THRESHOLD = 20
+LOOK_THRESHOLD = 15
 FADE_SPEED = 8
 DEPTHS_Y = 250
 DEPTHS_X = -300
@@ -32,6 +32,7 @@ class Game:
         pygame.init()
         self.clock = pygame.time.Clock()
         pygame.mixer.init()
+        pygame.mixer.set_num_channels(24)
 
         # Initialize controller
         pygame.joystick.init()
@@ -57,7 +58,7 @@ class Game:
         self.depths_background_alpha = 0                            # Depths background, only visible in bottom left corner
         self.darken_alpha = 0                                       # Slight darkness effect while near void depth   
 
-        # Load assets
+        # Load image assets
         self.assets = {
             'background' : load_image('backgrounds/blue_cave.png'),
             'void_background' : load_image('backgrounds/void_background.png'),
@@ -117,7 +118,7 @@ class Game:
             'enemies/wall_creeper/idle' : Animation(load_images('enemies/wall_creeper/idle'), img_dur=5, loop=True),
         }
 
-        # Load audio
+        # Load audio assets
         self.music_volume = DEFAULT_MUSIC_VOLUME
         self.sfx = {
             'run_grass' : pygame.mixer.Sound('sfx/run_grass.wav'),
@@ -202,23 +203,25 @@ class Game:
         # World Init
         self.tilemap = Tilemap(self, tile_size=16)
         self.level_select = '0'
-        self.load_map(self.level_select)
 
+        self.load_map(self.level_select)
         
 
 
     def load_map(self, map_id):
         """
-        Load the specified map and initialize game state
+        Load the given map id and initialize game state
         """
+
+        # Load file data onto current tilemap
         self.tilemap.load('maps/' + str(map_id) + '.json')
 
         # Particle Init
         self.particles = []
 
         # Entity Init
-        self.collectables = []
         self.grubs_collected = 0
+        self.collectables = []
         for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1), ('spawners', 2), ('spawners', 3), ('spawners', 4), ('spawners', 5), ('spawners', 6), ('spawners', 7), ('spawners', 8), ('spawners', 9), ('spawners', 10) , ('spawners', 11)]):
             if spawner['variant'] == 0:
                 self.collectables.append(Collectable(self, spawner['pos'], 'respawn'))
@@ -260,9 +263,9 @@ class Game:
         self.score_text = pygame.font.Font('freesansbold.ttf', 30)
         self.score_text_back = pygame.font.Font('freesansbold.ttf', 31)
 
-        self.hud.append(HudElement(self, self.assets['guide_move'] ,(8, 0)))
-        self.hud.append(HudElement(self, self.assets['guide_jump'] ,(64, 0)))
-        self.hud.append(HudElement(self, self.assets['grub_icon'] ,(DISPLAY_SIZE[0] - 32, 2), fixed=True, opacity=180, scale=1.0))
+        self.hud.append(HudElement(self, self.assets['guide_move'], (8, 0)))
+        self.hud.append(HudElement(self, self.assets['guide_jump'], (64, 0)))
+        self.hud.append(HudElement(self, self.assets['grub_icon'], (DISPLAY_SIZE[0] - 13, 2), fixed=True, opacity=180, scale=1.0))
 
         # Camera Init
         self.scroll = [0, 0]
@@ -275,9 +278,8 @@ class Game:
         Primary game loop; controls rendering, game initialization, and player input
         """
 
-         # Runs 60 times per second
+         # Runs ~60 times per second
         while True:
-
 
             # Start looping music playback
             if not pygame.mixer.music.get_busy():
@@ -384,14 +386,14 @@ class Game:
                             self.player_movement[1] = False
                             self.player.holding_right = False
 
-                    if event.axis == 1 or event.axis == 3:                  # Vertical joystick detection on both joysticks
-                        if event.value < -0.3:                              # Up joystick movement
+                    if event.axis == 3:                                     # Vertical joystick detection on right joystick       
+                        if event.value < -0.5:                              # Up joystick movement
                             self.player.holding_down = False
                             self.player.holding_up = True
-                        if event.value > 0.3:                               # Down joystick movement
+                        if event.value > 0.5:                               # Down joystick movement
                             self.player.holding_down = True
                             self.player.holding_up = False
-                        if event.value > -0.3 and event.value < 0.3:        # Reset in the middle
+                        if event.value > -0.5 and event.value < 0.5:        # Reset in the middle
                             self.player.holding_down = False
                             self.player.holding_up = False
 
@@ -460,7 +462,7 @@ class Game:
             if self.player.pos[1] > DEPTHS_Y and not self.player.has_cloak:
                 self.darken_alpha = min(120, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.2)
             elif self.player.pos[1] > DEPTHS_Y and self.player.has_cloak:
-                self.darken_alpha = min(110, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.1)
+                self.darken_alpha = min(110, 0 + (self.player.pos[1] - DEPTHS_Y) * 0.18)
             else:
                 self.darken_alpha = 0
             
@@ -582,10 +584,10 @@ class Game:
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()))
 
             # Render layered text onto screen to accomodate anti aliasing
-            score_img_back = self.score_text_back.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (0, 80, 40))
-            score_img = self.score_text.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (10, 120, 80))
-            self.screen.blit(score_img_back, (SCREEN_SIZE[0] - score_img.get_width() - 9.5, 12))
-            self.screen.blit(score_img, (SCREEN_SIZE[0] - score_img.get_width() - 8, 13))
+            score_img_back = self.score_text_back.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (0, 60, 20))
+            score_img = self.score_text.render(str(self.grubs_collected) + '/' + str(Collectable.total_grubs), False, (30, 120, 80))
+            self.screen.blit(score_img_back, (SCREEN_SIZE[0] - score_img.get_width() - 55, 13))
+            self.screen.blit(score_img, (SCREEN_SIZE[0] - score_img.get_width() - 56.5, 12))
 
 
             # Render and update blackout surface onto screen

@@ -214,13 +214,9 @@ class Collectable(PhysicsEntity):
         self.y_dist = self.rect.centery - self.player_rect.centery
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
-        # Collect when in contact
+        # Call collect actions every frame when in contact with player
         if self.rect.colliderect(self.player_rect):
             self.collect()
-
-        # Saw has circular appearance, use distance from center for collision detection
-        if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] - 10:
-            self.game.damage_fade_out = True
 
         # Update alerted status for grubs
         if self.dist_to_player >= ALERT_NOISE_DIST:
@@ -243,6 +239,10 @@ class Collectable(PhysicsEntity):
             self.game.sfx['saw_loop'].set_volume(min(0.2, (SAW_NOISE_DIST - self.dist_to_player) / (SAW_NOISE_DIST)))
             if self.idle_noise_timer % 100 == 1 and self.dist_to_player < SAW_NOISE_DIST * 1.2:
                 self.game.sfx['saw_loop'].play()
+
+        # Saw has circular appearance, use distance from center for collision detection
+        if self.type == 'collectables/saw' and self.dist_to_player < COLLECTABLE_SIZES['saw'][0] - 10:
+            self.game.damage_fade_out = True
 
         # Spawn floating void particles and handle collision
         if self.type == 'collectables/shade_gate':
@@ -301,16 +301,14 @@ class Collectable(PhysicsEntity):
             if self.collect_timer == 0:
 
                 # Sad grub noises if within distance and after random interval of seconds
-                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(5, 15) * TICK_RATE and self.game.player.pos[1] < DEPTHS_Y:
+                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(10, 20) * TICK_RATE and self.game.player.pos[1] < DEPTHS_Y:
                     rand = random.randint(1, 2)
                     rand_chance = random.randint(1, 10)
 
                     if rand_chance == 1:
                         self.idle_noise_timer = 0
-                        self.game.sfx['grub_sad_idle_' + str(rand)].set_volume((GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2))
+                        self.game.sfx['grub_sad_idle_' + str(rand)].set_volume(max(0.15, (GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2.5)))
                         self.game.sfx['grub_sad_idle_' + str(rand)].play()
-
-                    
 
                 # Update alert status when player is very close
                 if self.dist_to_player < ALERT_NOISE_DIST and abs(self.y_dist) < ALERT_NOISE_DIST / 100:
@@ -360,7 +358,7 @@ class Collectable(PhysicsEntity):
         Used to start animations and collisions
         """
         # Set spawn point on checkpoint
-        if self.type == 'collectables/respawn':
+        if self.type == 'collectables/respawn' and self.game.player.air_time < 4:
             self.game.player_spawn_pos = self.pos.copy()
 
         # Start save animation
@@ -469,7 +467,7 @@ class Enemy(PhysicsEntity):
         self.dist_to_player = math.sqrt(self.x_dist**2 + self.y_dist**2)
 
         # Avoid updating if player is no where near
-        if self.dist_to_player > 500:
+        if self.dist_to_player > 400:
             return
 
         
@@ -514,7 +512,7 @@ class Enemy(PhysicsEntity):
             
 
         # Explode if touched by player while cloaked
-        if self.dist_to_player < min(self.size[0], self.size[1]) - 4 and self.game.player.cloak_timer > 2 and self.game.player.cloak_timer < DASH_TICK - 1:
+        if self.dist_to_player < min(self.size[0], self.size[1]) - 4 and self.game.player.cloak_timer > 2 and self.game.player.cloak_timer < DASH_TICK and not self.game.damage_fade_out:
             self.game.sfx['crawler'].stop()
             self.game.sfx['wall_creeper'].stop()
             self.game.sfx['shade_gate_repel'].play()
