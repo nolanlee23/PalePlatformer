@@ -1,6 +1,6 @@
 import pygame
 
-FOLLOW_OFFSET = (5, 5)
+FOLLOW_OFFSET = (4, 5)
 
 class Particle:
     

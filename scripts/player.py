@@ -166,7 +166,7 @@ class Player(PhysicsEntity):
         below_tile = self.game.tilemap.tile_below(self.entity_rect().center)
         if below_tile == None:
             below_tile = {'type': 'air', 'variant': 0}
-        if below_tile['type'] == 'spikes' and self.collisions['down'] == True:
+        if below_tile['type'] == 'spikes' and self.collisions['down'] == True and abs(self.dash_timer) == 0:
             self.game.damage_fade_out = True
 
         # Update movement control variables
@@ -387,7 +387,7 @@ class Player(PhysicsEntity):
             return False
         
         # Wall jump if wall sliding, has claw, and has not wall jumped in ~10 frames
-        if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw and self.wall_jump_timer > WALL_JUMP_BUFFER + 4:
+        if self.wall_slide_timer < WALL_JUMP_BUFFER and self.has_claw and self.wall_jump_timer > WALL_JUMP_BUFFER + 4 and self.air_time > AIRTIME_BUFFER:
             self.game.sfx['wall_slide'].stop()
             self.game.sfx['wall_jump'].play()
 
@@ -408,21 +408,24 @@ class Player(PhysicsEntity):
         
         # Normal and double jump if grounded or not
         elif self.jumps and abs(self.dash_timer) < AIRTIME_BUFFER:
-            if self.air_time > AIRTIME_BUFFER * 2: 
-                # Mid Air jump             
-                if self.has_wings:
-                    self.jumps = min(0, self.jumps - 1)
-                    self.velocity[1] = AIR_JUMP_Y_VEL
-                    self.air_jumping = 1
-                    self.game.sfx['wings'].play()
-                    # Midair wing jump particle: 1 for wing animation, 6 bursts in each downward direction
-                    self.game.particles.append(Particle(self.game, 'wings_particle', self.entity_rect().center, velocity=(0, 0), flip=self.flip, follow_player=True))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().center, velocity=(-0.1, 0.3)))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().center, velocity=(0.1, 0.3)))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midleft + (2,0), velocity=(-0.2, 0.2)))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midright + (-2,0), velocity=(0.2, 0.2)))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midleft, velocity=(-0.4, 0.1)))
-                    self.game.particles.append(Particle(self.game, 'long_slide_particle', self.entity_rect().midright, velocity=(0.4, 0.1)))
+
+            # Mid Air jump             
+            if self.air_time > AIRTIME_BUFFER * 2 and self.has_wings:
+                self.jumps = min(0, self.jumps - 1)
+                self.velocity[1] = AIR_JUMP_Y_VEL
+                self.air_jumping = 1
+                self.game.sfx['wings'].play()
+
+                # Midair wing jump particle: 1 for wing animation, 6 bursts in each downward direction
+                self.player_rect = self.entity_rect()
+                self.game.particles.append(Particle(self.game, 'wings_particle', self.player_rect.center, velocity=(0, 0), flip=self.flip, follow_player=True))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.center, velocity=(-0.1, 0.3)))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.center, velocity=(0.1, 0.3)))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.midleft + (2,0), velocity=(-0.2, 0.2)))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.midright + (-2,0), velocity=(0.2, 0.2)))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.midleft, velocity=(-0.4, 0.1)))
+                self.game.particles.append(Particle(self.game, 'long_slide_particle', self.player_rect.midright, velocity=(0.4, 0.1)))
+
             # Grounded jump
             else:                                        
                 self.velocity[1] = JUMP_Y_VEL
@@ -552,13 +555,13 @@ class Player(PhysicsEntity):
         for entity in self.game.collectables:
             if entity.type == 'collectables/grub' and entity.collect_timer == 0:
 
-                # Assign first in the list
+                # Assign first in the list for comparison
                 if closest_grub is None:
                     closest_grub = entity
                     closest_grub_dist = math.sqrt((entity.rect.centerx - player_rect.centerx)**2 + (entity.rect.centery - player_rect.centery)**2)
                     continue
                 
-                # Compare current to closest, assign if curr is closer
+                # Compare current distance to closest, assign if closer
                 curr_dist = math.sqrt((entity.rect.centerx - player_rect.centerx)**2 + (entity.rect.centery - player_rect.centery)**2)
                 if curr_dist < closest_grub_dist:
                     closest_grub = entity

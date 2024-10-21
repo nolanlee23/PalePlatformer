@@ -301,14 +301,14 @@ class Collectable(PhysicsEntity):
             if self.collect_timer == 0:
 
                 # Sad grub noises if within distance and after random interval of seconds
-                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(10, 20) * TICK_RATE and self.game.player.pos[1] < DEPTHS_Y:
-                    rand = random.randint(1, 2)
-                    rand_chance = random.randint(1, 10)
+                if self.dist_to_player < GRUB_NOISE_DIST and self.dist_to_player > ALERT_NOISE_DIST and self.idle_noise_timer > random.randint(5, 25) * TICK_RATE and self.game.player.pos[1] < DEPTHS_Y:
+                    rand_sound = random.randint(1, 2)
+                    rand_chance = random.randint(1, 20)
 
                     if rand_chance == 1:
                         self.idle_noise_timer = 0
-                        self.game.sfx['grub_sad_idle_' + str(rand)].set_volume(max(0.15, (GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2.5)))
-                        self.game.sfx['grub_sad_idle_' + str(rand)].play()
+                        self.game.sfx['grub_sad_idle_' + str(rand_sound)].set_volume(max(0.12, (GRUB_NOISE_DIST - self.dist_to_player) / (GRUB_NOISE_DIST * 2.5)))
+                        self.game.sfx['grub_sad_idle_' + str(rand_sound)].play()
 
                 # Update alert status when player is very close
                 if self.dist_to_player < ALERT_NOISE_DIST and abs(self.y_dist) < ALERT_NOISE_DIST / 100:
@@ -456,7 +456,7 @@ class Enemy(PhysicsEntity):
 
     def update(self, movement=(0, 0)):
 
-        
+        # Update timers
         self.idle_noise_timer += 1
         
         # Update distance to player
@@ -479,7 +479,7 @@ class Enemy(PhysicsEntity):
                 self.flip = not self.flip
 
             # Move forward until there isn't a solid tile in front, then turn around
-            elif self.tilemap.tile_solid((self.rect.centerx + (-10 if self.flip else 10), self.pos[1] + 16)):
+            elif self.tilemap.tile_solid((self.rect.centerx + (-4 if self.flip else 4), self.pos[1] + 16)):
                 movement = (movement[0] - 0.6 if self.flip else 0.6, movement[1])
             else:
                 self.flip = not self.flip
@@ -511,8 +511,9 @@ class Enemy(PhysicsEntity):
                     self.game.sfx['wall_creeper'].play()
             
 
+
         # Explode if touched by player while cloaked
-        if self.dist_to_player < min(self.size[0], self.size[1]) - 4 and self.game.player.cloak_timer > 2 and self.game.player.cloak_timer < DASH_TICK and not self.game.damage_fade_out:
+        if self.dist_to_player < min(self.size[0], self.size[1]) and self.game.player.cloak_timer > 2 and self.game.player.cloak_timer < DASH_TICK and not self.game.damage_fade_out:
             self.game.sfx['crawler'].stop()
             self.game.sfx['wall_creeper'].stop()
             self.game.sfx['shade_gate_repel'].play()
